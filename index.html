@@ -23,7 +23,7 @@ h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 14px;
 </section>
 <section class="panel" style="margin-bottom:16px" aria-label="Kalshi 15 minute Bitcoin market">
 <h2>Kalshi · BTC up in next 15 minutes? · KXBTC15M</h2>
-<div class="stats"><div class="stat"><label>Active contract</label><strong id="kalshiTicker" style="font-size:13px">Loading…</strong></div><div class="stat"><label>Kalshi target (BRTI)</label><strong id="kalshiStrike">—</strong></div><div class="stat"><label>Time remaining</label><strong id="kalshiCountdown">—</strong></div><div class="stat"><label>YES / NO indication</label><strong id="kalshiCall">UNAVAILABLE</strong></div></div>
+<div class="stat" style="margin:12px 0;border-color:#52708a;background:#142332"><label>15-MINUTE KALSHI PAPER BID SIGNAL</label><strong id="bidAction" style="font-size:27px;color:#e8b96d">WAIT · NO BID</strong><p id="bidReason" class="foot" style="margin-top:8px">Waiting for fresh Kalshi contract and Coinbase price data.</p><p class="foot">UP = paper YES; DOWN = paper NO. Directional research only; not a verified profitable trade recommendation.</p></div><div class="stats"><div class="stat"><label>Active contract</label><strong id="kalshiTicker" style="font-size:13px">Loading…</strong></div><div class="stat"><label>Kalshi target (BRTI)</label><strong id="kalshiStrike">—</strong></div><div class="stat"><label>Time remaining</label><strong id="kalshiCountdown">—</strong></div><div class="stat"><label>YES / NO indication</label><strong id="kalshiCall">UNAVAILABLE</strong></div></div>
 <div class="reason"><span class="muted">Coinbase price vs Kalshi target (indicative only)</span><b id="kalshiDistance">—</b></div>
 <div class="reason"><span class="muted">Kalshi YES bid / NO bid</span><b id="kalshiBook">—</b></div>
 <p class="foot" id="kalshiStatus">Connecting to public Kalshi market data…</p>
@@ -77,8 +77,29 @@ const GRANULARITY={'15m':900,'5m':300,'1h':3600};
 async function getJSON(url){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(url,{signal:controller.signal,cache:'no-store',headers:{'Accept':'application/json'}});if(!r.ok){let msg='HTTP '+r.status;try{const data=await r.json();msg+=' '+(data.error||'')+(data.detail?' ('+data.detail+')':'');}catch{}throw Error(msg);}return await r.json();}finally{clearTimeout(timeout)}}
 
 function num(v){if(v===null||v===undefined||v==='')return NaN;const n=Number(v);return Number.isFinite(n)?n:NaN;}
+function showBidAction(){
+ const el=$('bidAction'),reason=$('bidReason');if(!el||!reason)return;
+ const m=kalshiMarket,now=Date.now();let action='WAIT · NO BID',why='Waiting for fresh Kalshi contract and Coinbase price data.',color='var(--amber)';
+ if(m&&signal){
+  const close=Date.parse(m.close_time||m.expiration_time||''),strike=num(m.floor_strike),remaining=close-now;
+  const fresh=now-kalshiFetchedAt<90000&&now-lastPriceAt<90000;
+  if(!fresh)why='Market data is stale; no paper bid.';
+  else if(!['active','open'].includes(m.status)||!Number.isFinite(close)||remaining<=0||remaining>15*60*1000)why='No eligible active 15-minute contract.';
+  else if(!Number.isFinite(strike)||strike<=0)why='Kalshi settlement target unavailable; no paper bid.';
+  else if(!Number.isFinite(ticker)||!Number.isFinite(signal.a)||signal.a<=0)why='Coinbase price or volatility unavailable.';
+  else {
+   const gap=ticker-strike,margin=Math.max(20,signal.a*.15);
+   if(Math.abs(gap)<margin)why='BTC is too close to the Kalshi target; skip.';
+   else if(signal.strength<60)why='Trend strength below paper-signal threshold; skip.';
+   else if(gap>0&&signal.dir==='UP'){action='PAPER BID UP';color='var(--green)';why='YES directional lean: Coinbase above target and trend agrees. Not a calibrated probability.';}
+   else if(gap<0&&signal.dir==='DOWN'){action='PAPER BID DOWN';color='var(--red)';why='NO directional lean: Coinbase below target and trend agrees. Not a calibrated probability.';}
+   else why='Coinbase target position and trend disagree; skip.';
+  }
+ }
+ el.textContent=action;el.style.color=color;reason.textContent=why;
+}
 function showKalshi(){
- const m=kalshiMarket,now=Date.now();if(!m){$('kalshiCall').textContent='UNAVAILABLE';return;}
+ showBidAction();const m=kalshiMarket,now=Date.now();if(!m){$('kalshiCall').textContent='UNAVAILABLE';return;}
  const close=Date.parse(m.close_time||m.expiration_time||'');const strike=num(m.floor_strike);
  const active=Number.isFinite(close)&&close>now&&['active','open'].includes(m.status)&&Number.isFinite(strike)&&strike>0&&now-kalshiFetchedAt<180000;
  $('kalshiTicker').textContent=m.ticker||'—';$('kalshiStrike').textContent=Number.isFinite(strike)?'$'+fmt(strike):'Not published';
