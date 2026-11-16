@@ -74,7 +74,7 @@ function render(){let x=calc(candles);if(!x)return;signal=x;let last=candles.at(
  ['emaVote','rsiVote','macdVote','volumeVote'].forEach((id,i)=>$(id).textContent=x.votes[[0,2,3,4][i]]>0?'BULLISH':x.votes[[0,2,3,4][i]]<0?'BEARISH':'NEUTRAL');draw();showKalshi();}
 function draw(){let c=$('chart'),ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);if(!candles.length)return;let data=candles.slice(-65),lo=Math.min(...data.map(x=>x.l)),hi=Math.max(...data.map(x=>x.h)),pad=22,span=hi-lo||1;ctx.strokeStyle='#263440';ctx.lineWidth=1;for(let i=0;i<5;i++){let y=pad+i*(h-2*pad)/4;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}let cw=w/data.length*.58;data.forEach((d,i)=>{let x=(i+.5)*w/data.length,y=v=>pad+(hi-v)/span*(h-2*pad),up=d.c>=d.o;ctx.strokeStyle=up?'#39d49a':'#ff647c';ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(x,y(d.h));ctx.lineTo(x,y(d.l));ctx.stroke();let top=y(Math.max(d.o,d.c)),bottom=y(Math.min(d.o,d.c));ctx.fillRect(x-cw/2,top,cw,Math.max(2,bottom-top));});ctx.fillStyle='#91a3b4';ctx.font='12px sans-serif';ctx.fillText('$'+fmt(hi),8,14);ctx.fillText('$'+fmt(lo),8,h-5);}
 const GRANULARITY={'15m':900,'5m':300,'1h':3600};
-async function getJSON(url){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(url,{signal:controller.signal,cache:'no-store',headers:{'Accept':'application/json'}});if(!r.ok)throw Error('HTTP '+r.status);return await r.json();}finally{clearTimeout(timeout)}}
+async function getJSON(url){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(url,{signal:controller.signal,cache:'no-store',headers:{'Accept':'application/json'}});if(!r.ok){let msg='HTTP '+r.status;try{const data=await r.json();msg+=' '+(data.error||'')+(data.detail?' ('+data.detail+')':'');}catch{}throw Error(msg);}return await r.json();}finally{clearTimeout(timeout)}}
 
 function num(v){if(v===null||v===undefined||v==='')return NaN;const n=Number(v);return Number.isFinite(n)?n:NaN;}
 function showKalshi(){
@@ -95,12 +95,12 @@ function showKalshi(){
 }
 async function loadKalshi(){
  try{
-  const raw=await getJSON('https://external-api.kalshi.com/trade-api/v2/markets?series_ticker=KXBTC15M&status=open&limit=100');
+  const raw=await getJSON('/api/kalshi');
   if(!Array.isArray(raw.markets))throw Error('Invalid Kalshi response');
   const now=Date.now();const markets=raw.markets.filter(m=>['active','open'].includes(m.status)&&Date.parse(m.close_time||m.expiration_time||'')>now).sort((a,b)=>Date.parse(a.close_time)-Date.parse(b.close_time));
   kalshiMarket=markets[0]||null;kalshiFetchedAt=Date.now();
   $('kalshiStatus').textContent=kalshiMarket?'Kalshi public API · last checked '+new Date().toLocaleTimeString():'No currently active KXBTC15M contract returned; no prediction displayed';
- }catch(e){kalshiMarket=null;$('kalshiStatus').textContent='Kalshi feed unavailable: '+e.message+'. If blocked by browser CORS, a server-side API proxy is needed.';}
+ }catch(e){kalshiMarket=null;$('kalshiStatus').textContent='Kalshi feed unavailable: '+e.message+'. Check /api/kalshi on this site and Vercel function logs.';}
  showKalshi();
 }
 
@@ -148,7 +148,7 @@ function paperRecord(){
 async function paperVerify(){
  let count=0,errors=0;
  for(const row of paper.filter(x=>!x.result&&Date.parse(x.close)<Date.now()-120000).slice(0,20)){
-  try{const raw=await getJSON('https://external-api.kalshi.com/trade-api/v2/markets/'+encodeURIComponent(row.market));const m=raw.market;
+  try{const raw=await getJSON('/api/kalshi?ticker='+encodeURIComponent(row.market));const m=raw.market;
    if(m&&(m.result==='yes'||m.result==='no')&&(m.status==='finalized'||m.status==='settled'||m.status==='closed')){row.result=m.result;count++;}
   }catch(e){errors++;}
  }
