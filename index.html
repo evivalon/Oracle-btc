@@ -95,7 +95,8 @@ function extractBRTISamples(raw){
  for(const arr of arrays)for(const x of arr){
   const v=Number(x.value??x.price??x.indexValue??x.index_value);
   const stamp=x.time??x.timestamp??x.ts??x.valueTime??x.value_time??x.publishedAt;
-  const t=typeof stamp==='number'?(stamp>1e12?stamp:stamp*1000):Date.parse(stamp);
+  const stampNumber=typeof stamp==='string'&&/^\d{10,16}$/.test(stamp)?Number(stamp):stamp;
+  const t=typeof stampNumber==='number'?(stampNumber>1e12?stampNumber:stampNumber*1000):Date.parse(stampNumber);
   if(Number.isFinite(v)&&v>0&&Number.isFinite(t))result.push({t,v});
  }
  return [...new Map(result.map(x=>[x.t,x])).values()].sort((a,b)=>a.t-b.t);
@@ -114,7 +115,7 @@ async function loadBRTI(){
   $('brtiPrice').textContent='$'+fmt(last.v);$('brtiAverage').textContent='$'+fmt(mean);$('brtiCoverage').textContent=distinctSeconds+'/60 seconds';
   $('brtiStatus').textContent='Kalshi / CF Benchmarks · official index values · '+new Date(last.t).toLocaleTimeString()+' · trailing window is indicative';
   updateBRTIGap();
- }catch(e){brti=null;for(const id of ['brtiPrice','brtiAverage','brtiGap','brtiCoverage'])$(id).textContent='—';$('brtiStatus').textContent='BRTI unavailable: '+e.message+' · Coinbase predictions remain proxy-only.';}
+ }catch(e){brti=null;for(const id of ['brtiPrice','brtiAverage','brtiGap','brtiCoverage'])$(id).textContent='—';$('brtiStatus').textContent='BRTI unavailable: '+(e.message.includes('BRTI_NOT_CONFIGURED')?'Kalshi credentials are missing in Vercel. Add KALSHI_API_KEY_ID and KALSHI_PRIVATE_KEY under Project Settings → Environment Variables (Production), then redeploy.':e.message.includes('BRTI_ACCESS_DENIED')?'Kalshi denied CF Benchmarks access. Check your account entitlement with Kalshi.':e.message.includes('BRTI_AUTH_FAILED')?'Kalshi rejected the API key or signature. Verify your private key format and key ID.':e.message)+' · Coinbase predictions remain proxy-only.';}
 }
 function updateBRTIGap(){const strike=Number(kalshiMarket?.floor_strike);$('brtiGap').textContent=brti&&Number.isFinite(strike)&&strike>0?(brti.average>=strike?'+':'−')+'$'+fmt(Math.abs(brti.average-strike)):'—';}
 function num(v){if(v===null||v===undefined||v==='')return NaN;const n=Number(v);return Number.isFinite(n)?n:NaN;}
