@@ -23,7 +23,7 @@ h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 14px;
 </section>
 <section class="panel" style="margin-bottom:16px" aria-label="Kalshi 15 minute Bitcoin market">
 <h2>Kalshi · BTC up in next 15 minutes? · KXBTC15M</h2>
-<div class="stat" style="margin:12px 0;border-color:#52708a;background:#142332"><label>15-MINUTE KALSHI PAPER BID SIGNAL</label><strong id="bidAction" style="font-size:27px;color:#e8b96d">WAIT · NO BID</strong><p id="bidReason" class="foot" style="margin-top:8px">Waiting for fresh Kalshi contract and Coinbase price data.</p><p class="foot">UP = paper YES; DOWN = paper NO. Directional research only; not a verified profitable trade recommendation.</p></div><div class="stats"><div class="stat"><label>Active contract</label><strong id="kalshiTicker" style="font-size:13px">Loading…</strong></div><div class="stat"><label>Kalshi target (BRTI)</label><strong id="kalshiStrike">—</strong></div><div class="stat"><label>Time remaining</label><strong id="kalshiCountdown">—</strong></div><div class="stat"><label>YES / NO indication</label><strong id="kalshiCall">UNAVAILABLE</strong></div></div>
+<div class="stat" style="margin:12px 0;border-color:#52708a;background:#142332"><label>15-MINUTE KALSHI PAPER BID SIGNAL</label><strong id="bidAction" style="font-size:27px;color:#e8b96d">WAIT · NO BID</strong><p id="bidReason" class="foot" style="margin-top:8px">Waiting for fresh Kalshi contract and Coinbase price data.</p><p class="foot">UP = paper YES; DOWN = paper NO. Directional research only; not a verified profitable trade recommendation.</p></div><div class="stats"><div class="stat"><label>Active contract</label><strong id="kalshiTicker" style="font-size:13px">Loading…</strong></div><div class="stat"><label>Kalshi target (BRTI)</label><strong id="kalshiStrike">—</strong></div><div class="stat"><label>Time remaining (min / sec)</label><strong id="kalshiCountdown">—</strong></div><div class="stat"><label>YES / NO indication</label><strong id="kalshiCall">UNAVAILABLE</strong></div></div>
 <div class="reason"><span class="muted">Coinbase price vs Kalshi target (indicative only)</span><b id="kalshiDistance">—</b></div>
 <div class="reason"><span class="muted">Kalshi YES bid / NO bid</span><b id="kalshiBook">—</b></div>
 <p class="foot" id="kalshiStatus">Connecting to public Kalshi market data…</p>
@@ -103,7 +103,7 @@ function showKalshi(){
  const close=Date.parse(m.close_time||m.expiration_time||'');const strike=num(m.floor_strike);
  const active=Number.isFinite(close)&&close>now&&['active','open'].includes(m.status)&&Number.isFinite(strike)&&strike>0&&now-kalshiFetchedAt<180000;
  $('kalshiTicker').textContent=m.ticker||'—';$('kalshiStrike').textContent=Number.isFinite(strike)?'$'+fmt(strike):'Not published';
- $('kalshiCountdown').textContent=Number.isFinite(close)?(close>now?Math.floor((close-now)/60)+':'+String(Math.floor((close-now)/1000)%60).padStart(2,'0'):'CLOSED'):'Unknown';
+ $('kalshiCountdown').textContent=Number.isFinite(close)?(close>now?Math.floor((close-now)/60000)+'m '+String(Math.floor((close-now)/1000)%60).padStart(2,'0')+'s':'CLOSED'):'Unknown';
  const y=num(m.yes_bid_dollars),n=num(m.no_bid_dollars);
  const y2=Number.isFinite(y)?y:num(m.yes_bid)/100,n2=Number.isFinite(n)?n:num(m.no_bid)/100;
  $('kalshiBook').textContent=(Number.isFinite(y2)?Math.round(y2*100)+'¢':'—')+' / '+(Number.isFinite(n2)?Math.round(n2*100)+'¢':'—');
