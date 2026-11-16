@@ -25,7 +25,7 @@ h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 14px;
 </section>
 <section class="panel" style="margin-bottom:16px" aria-label="Kalshi 15 minute Bitcoin market">
 <h2>Kalshi · BTC up in next 15 minutes? · KXBTC15M</h2>
-<div class="stat" style="margin:12px 0;border-color:#8157b1;background:#1c102d"><label>MODEL DIRECTION FOR CURRENT KALSHI CONTRACT · EXPERIMENTAL</label><strong id="positionSide" style="display:block;font-size:34px;color:#d3a0ff">WAIT · DATA</strong><p id="positionExplain" class="foot">Waiting for valid market data. UP corresponds to Kalshi YES; DOWN corresponds to Kalshi NO. This is not an instruction to place a trade.</p><div class="reason"><span class="muted">Model preference / probability</span><b id="positionProbability">—</b></div><div class="reason"><span class="muted">Paper entry decision (after price and fees)</span><b id="positionEntry">WAIT · NO BID</b></div></div><div class="stat" style="margin:12px 0;border-color:#8157b1;background:#1c102d"><label>15-MINUTE KALSHI PAPER VALUE SCREEN</label><strong id="bidAction" style="font-size:27px;color:#d3a0ff">WAIT · NO BID</strong><p id="bidReason" class="foot" style="margin-top:8px">Waiting for fresh Kalshi contract and Coinbase price data.</p><p class="foot">Paper opportunity screen only. Estimated probabilities are uncalibrated and do not predict guaranteed profit.</p><div class="reason"><span class="muted">Flip chance by settlement (experimental)</span><b id="flipChance">—</b></div><div class="reason"><span class="muted">Current side / projected side</span><b id="flipSides">—</b></div><p id="flipNote" class="foot">Flip = the side indicated by Coinbase spot versus the Kalshi threshold changes by contract settlement. This is not the chance of a temporary price crossing.</p><div class="reason"><span class="muted">Estimated YES / NO chance (uncalibrated)</span><b id="edgeProb">—</b></div><div class="reason"><span class="muted">Estimated YES / NO buy price (ask)</span><b id="edgeAsk">—</b></div><div class="reason"><span class="muted">Estimated YES / NO net edge per contract</span><b id="edgeEV">—</b></div><p id="edgeNote" class="foot">Waiting for sufficient data to estimate paper-trade value.</p></div><div class="stats"><div class="stat"><label>Active contract</label><strong id="kalshiTicker" style="font-size:13px">Loading…</strong></div><div class="stat"><label>Kalshi target (BRTI)</label><strong id="kalshiStrike">—</strong></div><div class="stat"><label>Time remaining (min / sec)</label><strong id="kalshiCountdown">—</strong></div><div class="stat"><label>YES / NO indication</label><strong id="kalshiCall">UNAVAILABLE</strong></div></div>
+<div class="stat" style="margin:12px 0;border-color:#8157b1;background:#1c102d"><label>PROJECTED 15-MINUTE SETTLEMENT SIDE · EXPERIMENTAL</label><strong id="positionSide" style="display:block;font-size:34px;color:#d3a0ff">WAIT · DATA</strong><p id="positionExplain" class="foot">Waiting for valid market data. UP corresponds to Kalshi YES; DOWN corresponds to Kalshi NO. This is not an instruction to place a trade.</p><div class="reason"><span class="muted">Projected finish (Coinbase-based proxy)</span><b id="projectedFinish">—</b></div><div class="reason"><span class="muted">Projected finish vs Kalshi target</span><b id="projectedGap">—</b></div><div class="reason"><span class="muted">Model preference / probability</span><b id="positionProbability">—</b></div><div class="reason"><span class="muted">Paper entry decision (after price and fees)</span><b id="positionEntry">WAIT · NO BID</b></div></div><div class="stat" style="margin:12px 0;border-color:#8157b1;background:#1c102d"><label>15-MINUTE KALSHI PAPER VALUE SCREEN</label><strong id="bidAction" style="font-size:27px;color:#d3a0ff">WAIT · NO BID</strong><p id="bidReason" class="foot" style="margin-top:8px">Waiting for fresh Kalshi contract and Coinbase price data.</p><p class="foot">Paper opportunity screen only. Estimated probabilities are uncalibrated and do not predict guaranteed profit.</p><div class="reason"><span class="muted">Flip chance by settlement (experimental)</span><b id="flipChance">—</b></div><div class="reason"><span class="muted">Current side / projected side</span><b id="flipSides">—</b></div><p id="flipNote" class="foot">Flip = the side indicated by Coinbase spot versus the Kalshi threshold changes by contract settlement. This is not the chance of a temporary price crossing.</p><div class="reason"><span class="muted">Estimated YES / NO chance (uncalibrated)</span><b id="edgeProb">—</b></div><div class="reason"><span class="muted">Estimated YES / NO buy price (ask)</span><b id="edgeAsk">—</b></div><div class="reason"><span class="muted">Estimated YES / NO net edge per contract</span><b id="edgeEV">—</b></div><p id="edgeNote" class="foot">Waiting for sufficient data to estimate paper-trade value.</p></div><div class="stats"><div class="stat"><label>Active contract</label><strong id="kalshiTicker" style="font-size:13px">Loading…</strong></div><div class="stat"><label>Kalshi target (BRTI)</label><strong id="kalshiStrike">—</strong></div><div class="stat"><label>Time remaining (min / sec)</label><strong id="kalshiCountdown">—</strong></div><div class="stat"><label>YES / NO indication</label><strong id="kalshiCall">UNAVAILABLE</strong></div></div>
 <div class="reason"><span class="muted">Coinbase price vs Kalshi target (indicative only)</span><b id="kalshiDistance">—</b></div>
 <div class="reason"><span class="muted">Kalshi YES bid / NO bid</span><b id="kalshiBook">—</b></div>
 <p class="foot" id="kalshiStatus">Connecting to public Kalshi market data…</p>
@@ -93,8 +93,14 @@ function estimateSettlementProbability(strike,seconds){
  if(!Number.isFinite(volPerSqrtMinute)||volPerSqrtMinute<=0)return null;
  // A conservative 0.08% floor for spot/index mismatch and settlement averaging uncertainty.
  const sigma=Math.sqrt(volPerSqrtMinute**2*Math.max(seconds/60,1)+0.0008**2);
- const z=Math.log(ticker/strike)/sigma;
- return {yes:Math.max(0.01,Math.min(0.99,normCDF(z))),sigma,observations:returns.length};
+ // Short-term drift is strongly shrunk toward zero to avoid extrapolating noisy candles.
+ const recent=returns.slice(-20);
+ const driftPerMinute=recent.reduce((a,x)=>a+x.r,0)/recent.reduce((a,x)=>a+x.dt,0);
+ const rawDrift=driftPerMinute*(seconds/60)*0.15;
+ const drift=Math.max(-sigma*0.35,Math.min(sigma*0.35,rawDrift));
+ const projectedFinish=ticker*Math.exp(drift);
+ const z=Math.log(projectedFinish/strike)/sigma;
+ return {yes:Math.max(0.01,Math.min(0.99,normCDF(z))),sigma,observations:returns.length,projectedFinish,drift};
 }
 function feePerContract(price){return Math.ceil((0.07*price*(1-price))*10000)/10000;}
 function showBidAction(){
@@ -105,6 +111,7 @@ function showBidAction(){
  set(probEl,'—');set(askEl,'—');set(evEl,'—');set(noteEl,'Experimental estimate only; not trained on Kalshi outcomes.');
  set($('flipChance'),'—');set($('flipSides'),'—');
  const m=kalshiMarket,now=Date.now();
+ set($('projectedFinish'),'—');set($('projectedGap'),'—');
  set($('positionSide'),'WAIT · DATA');set($('positionProbability'),'—');set($('positionEntry'),'WAIT · NO BID');set($('positionExplain'),'Waiting for valid Kalshi and Coinbase data. No real-money trade recommendation.');
  if(m){
   const close=Date.parse(m.close_time||m.expiration_time||''),strike=num(m.floor_strike),seconds=(close-now)/1000;
@@ -122,14 +129,16 @@ function showBidAction(){
    if(!estimate)why='Volatility unavailable: check valid candle timestamps, closing prices, and fresh Coinbase spot data ('+candles.length+' candles received).';
    else {
     const pYes=estimate.yes,pNo=1-pYes;
+    set($('projectedFinish'),'$'+fmt(estimate.projectedFinish));
+    set($('projectedGap'),(estimate.projectedFinish>=strike?'+':'−')+'$'+fmt(Math.abs(estimate.projectedFinish-strike)));
     const direction=pYes>=0.5?'UP · YES':'DOWN · NO';
     set($('positionSide'),direction);$('positionSide').style.color=pYes>=0.5?'var(--green)':'var(--red)';
     set($('positionProbability'),(Math.max(pYes,pNo)*100).toFixed(1)+'% experimental');
-    set($('positionExplain'),'Directional model preference only. Compare the separate paper entry decision below; a likely outcome can still be overpriced. Not calibrated to Kalshi settlements.');
+    set($('positionExplain'),'UP means the estimated finish is above the Kalshi target at contract settlement; DOWN means below. Projection uses Coinbase spot, recent drift and volatility, not the official BRTI index. Unvalidated; not a trade instruction.');
     // Terminal reversal probability relative to Coinbase's current threshold side.
     // A crossing at any point before settlement is a different event.
     const currentSide=ticker>=strike?'UP':'DOWN';
-    const projectedSide=pYes>=0.5?'UP':'DOWN';
+    const projectedSide=estimate.projectedFinish>=strike?'UP':'DOWN';
     const flip=currentSide==='UP'?pNo:pYes;
     set($('flipChance'),(flip*100).toFixed(1)+'%');
     set($('flipSides'),currentSide+' / '+projectedSide);
