@@ -32,6 +32,7 @@ h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 14px;
 <p class="foot"><strong>SAFETY GATE: NO LIVE TRADE RECOMMENDATIONS.</strong> Until a prospective dataset demonstrates calibrated settlement probabilities and positive out-of-sample returns after fees, the app will not label any contract as a buy. No broker authentication or order execution is included.</p><p class="foot">Kalshi settles this series using CF Benchmarks BRTI 60-second averages, not Coinbase spot prices. The YES/NO indication is a directional proxy, not a calibrated contract probability or a verified settlement forecast. No real orders are placed.</p>
 </section>
 
+<section class="panel" style="margin-bottom:16px" id="learningLab"><h2>Adaptive Kalshi probability model · experimental</h2><div class="stats"><div class="stat"><label>Learning status</label><strong id="learnStatus" style="font-size:14px">Collecting outcomes</strong></div><div class="stat"><label>Verified training examples</label><strong id="learnTrain">0</strong></div><div class="stat"><label>Held-out test examples</label><strong id="learnTest">0</strong></div><div class="stat"><label>Model version</label><strong id="learnVersion" style="font-size:14px">Baseline</strong></div></div><div class="reason"><span class="muted">Baseline / learned Brier score on later contracts (lower is better)</span><b id="learnBrier">—</b></div><p class="foot" id="learnNote">Learning requires at least 100 earlier settled forecasts and 30 later held-out outcomes. Training uses official YES/NO settlements only, never inferred Coinbase outcomes. Local device storage only; no continuous background learning.</p></section>
 <section class="panel" style="margin-bottom:16px" id="paperLab">
 <h2>Kalshi 15M · forward-only validation · v2</h2>
 <div class="stats"><div class="stat"><label>Trading decision</label><strong id="paperDecision" style="color:var(--amber)">NO TRADE</strong></div><div class="stat"><label>Recorded forecasts</label><strong id="paperCount">0</strong></div><div class="stat"><label>Settled forecasts</label><strong id="paperSettled">0</strong></div><div class="stat"><label>Observed hit rate</label><strong id="paperHit">Not established</strong></div></div>
@@ -103,6 +104,42 @@ function estimateSettlementProbability(strike,seconds){
  return {yes:Math.max(0.01,Math.min(0.99,normCDF(z))),sigma,observations:returns.length,projectedFinish,drift};
 }
 function feePerContract(price){return Math.ceil((0.07*price*(1-price))*10000)/10000;}
+// Walk-forward, outcome-supervised probability calibration. No training on pending outcomes.
+// Baseline p is captured at forecast time, never recomputed using future candles.
+const LEARN_VERSION='platt-local-v1';
+let calibrationCache=null,calibrationSignature='';
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function sigmoid(z){return 1/(1+Math.exp(-clamp(z,-30,30)));}
+function logit(p){p=clamp(p,0.01,0.99);return Math.log(p/(1-p));}
+function brier(rows,predict){return rows.reduce((sum,r)=>sum+(predict(r)-(r.result==='yes'?1:0))**2,0)/rows.length;}
+function fitPlatt(rows){
+ // Regularized 2-parameter logistic calibration with bounded slope.
+ let a=0,b=1;
+ for(let epoch=0;epoch<600;epoch++){
+  let ga=0,gb=0;
+  for(const r of rows){const x=clamp(logit(r.baseYes),-4,4),y=r.result==='yes'?1:0,d=sigmoid(a+b*x)-y;ga+=d;gb+=d*x;}
+  const rate=0.12/(1+epoch/180),n=rows.length;
+  a-=rate*(ga/n+0.08*a);b-=rate*(gb/n+0.12*(b-1));
+  a=clamp(a,-2,2);b=clamp(b,0.1,2.5);
+ }
+ return {a,b};
+}
+function learningModel(){
+ const rows=paper.filter(r=>(r.result==='yes'||r.result==='no')&&Number.isFinite(r.baseYes)&&r.baseYes>0&&r.baseYes<1).sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
+ const sig=rows.map(r=>r.market+':'+r.result+':'+r.baseYes).join('|');
+ if(sig===calibrationSignature&&calibrationCache)return calibrationCache;
+ const cutoff=Math.floor(rows.length*0.75),train=rows.slice(0,cutoff),test=rows.slice(cutoff);
+ const info={train:train.length,test:test.length,active:false,version:'Baseline',baseBrier:null,learnedBrier:null,model:null};
+ if(train.length>=100&&test.length>=30){
+  const fitted=fitPlatt(train),base=brier(test,r=>r.baseYes),learned=brier(test,r=>sigmoid(fitted.a+fitted.b*logit(r.baseYes)));
+  info.baseBrier=base;info.learnedBrier=learned;
+  // Do not promote an adaptive model that fails held-out testing.
+  if(learned+0.002<base){info.active=true;info.model=fitted;info.version=LEARN_VERSION;}
+ }
+ calibrationSignature=sig;calibrationCache=info;return info;
+}
+function adaptiveProbability(base){const m=learningModel();return m.active?clamp(sigmoid(m.model.a+m.model.b*logit(base)),0.01,0.99):base;}
+function showLearning(){const m=learningModel();$('learnTrain').textContent=m.train;$('learnTest').textContent=m.test;$('learnVersion').textContent=m.version;$('learnStatus').textContent=m.active?'Learned model passed test':'Baseline / collecting evidence';$('learnBrier').textContent=m.baseBrier===null?'Not enough settled forecasts':m.baseBrier.toFixed(4)+' / '+m.learnedBrier.toFixed(4);$('learnNote').textContent=m.active?'Calibrator passed held-out Brier-score comparison. This does not establish profitable trading. Model is re-evaluated as new settlements arrive.':'Adaptive model stays disabled unless at least 100 earlier settled forecasts, 30 later test outcomes, and lower held-out Brier score are observed. Stored on this device only.';}
 function showBidAction(){
  const el=$('bidAction'),reason=$('bidReason');if(!el||!reason)return;
  const probEl=$('edgeProb'),askEl=$('edgeAsk'),evEl=$('edgeEV'),noteEl=$('edgeNote');
@@ -128,14 +165,14 @@ function showBidAction(){
    const estimate=estimateSettlementProbability(strike,seconds);
    if(!estimate)why='Volatility unavailable: check valid candle timestamps, closing prices, and fresh Coinbase spot data ('+candles.length+' candles received).';
    else {
-    const pYes=estimate.yes,pNo=1-pYes;
+    const pYes=adaptiveProbability(estimate.yes),pNo=1-pYes;
     set($('projectedFinish'),'$'+fmt(estimate.projectedFinish));
     set($('projectedGap'),(estimate.projectedFinish>=strike?'+':'−')+'$'+fmt(Math.abs(estimate.projectedFinish-strike)));
     const certaintyThreshold=0.65; // Research-only cutoff, not calibrated confidence.
     const undetermined=Math.max(pYes,pNo)<certaintyThreshold;
     const direction=undetermined?'UNDETERMINED':pYes>=0.5?'UP · YES':'DOWN · NO';
     set($('positionSide'),direction);$('positionSide').style.color=undetermined?'var(--amber)':pYes>=0.5?'var(--green)':'var(--red)';
-    set($('positionProbability'),(Math.max(pYes,pNo)*100).toFixed(1)+'% experimental');
+    set($('positionProbability'),(Math.max(pYes,pNo)*100).toFixed(1)+'% '+(learningModel().active?'adaptively calibrated':'experimental baseline'));
     set($('positionExplain'),undetermined?'Neither side reaches the 65% experimental threshold. The projected finish is too uncertain to classify as UP or DOWN; WAIT / NO BID.':'UP means the estimated finish is above the Kalshi target at contract settlement; DOWN means below. The 65% threshold is an arbitrary research filter, not verified confidence. Coinbase-based and unvalidated.');
     // Terminal reversal probability relative to Coinbase's current threshold side.
     // A crossing at any point before settlement is a different event.
@@ -148,11 +185,12 @@ function showBidAction(){
     set(probEl,(pYes*100).toFixed(1)+'% / '+(pNo*100).toFixed(1)+'%');
     set(askEl,(yesAsk*100).toFixed(1)+'¢ / '+(noAsk*100).toFixed(1)+'¢');
     set(evEl,(yesEV>=0?'+':'')+(yesEV*100).toFixed(1)+'¢ / '+(noEV>=0?'+':'')+(noEV*100).toFixed(1)+'¢');
-    set(noteEl,'Assumes immediate purchase at best inferred ask, 1 contract, standard taker fee estimate. Excludes slippage. Flip and value probabilities use Coinbase spot and are not calibrated to BRTI settlement.');
+    set(noteEl,'Research-only estimated value; excludes slippage and settlement-index mismatch. '+(learningModel().active?'Adaptive calibration passed a limited held-out test; profitability is unproven.':'No validated calibration yet.'));
     // 10 percentage-point edge hurdle is a research filter, not evidence of profitability.
     const hurdle=0.10;
     if(undetermined)why='UNDETERMINED: neither UP nor DOWN reaches the 65% experimental threshold. No paper bid.';
     else if(seconds<60)why='Less than 60 seconds left: price/index timing risk too high.';
+    else if(!learningModel().active)why='Learning model not validated yet: collecting official Kalshi outcomes. Paper bid withheld.';
     else if(Math.max(yesEV,noEV)<hurdle)why='No estimated edge above the 10¢ research hurdle after estimated fees.';
     else if(yesEV>=noEV){action='PAPER OPPORTUNITY · UP';color='var(--green)';why='Experimental YES value screen passed. NOT a validated real-money trade recommendation.';}
     else {action='PAPER OPPORTUNITY · DOWN';color='var(--red)';why='Experimental NO value screen passed. NOT a validated real-money trade recommendation.';}
@@ -203,31 +241,31 @@ function paperLean(){
  if(!m||!m.ticker||!['active','open'].includes(m.status))return null;
  const close=Date.parse(m.close_time||m.expiration_time||'');
  const strike=num(m.floor_strike),price=ticker;
- if(!Number.isFinite(close)||close<=now||close-now>15*60*1000||!Number.isFinite(strike)||strike<=0||!Number.isFinite(price)||now-lastPriceAt>90000||now-kalshiFetchedAt>90000||!signal)return null;
- // Require meaningful distance from strike relative to recent 15m ATR, and agreement with existing heuristic.
- const margin=Math.max(20,signal.a*.15);
- if(Math.abs(price-strike)<margin)return null;
- const side=price>strike?'yes':'no';
- if((side==='yes'&&signal.dir!=='UP')||(side==='no'&&signal.dir!=='DOWN'))return null;
- return {side,close,strike,price,margin};
+ if(!Number.isFinite(close)||close<=now||close-now>15*60*1000||!Number.isFinite(strike)||strike<=0||!Number.isFinite(price)||now-lastPriceAt>90000||now-kalshiFetchedAt>90000)return null;
+ const est=estimateSettlementProbability(strike,(close-now)/1000);
+ if(!est)return null;
+ // Capture every eligible contract once, including uncertain predictions, to avoid selection bias.
+ const p=adaptiveProbability(est.yes);
+ return {side:p>=0.5?'yes':'no',close,strike,price,baseYes:est.yes,predYes:p,margin:0};
 }
+
 function paperRender(){
  const lean=paperLean();$('paperDecision').textContent='NO TRADE';
- $('paperSignal').textContent=lean?lean.side.toUpperCase()+' · UNVALIDATED':'WAIT · NO QUALIFYING SIGNAL';
+ $('paperSignal').textContent=lean?lean.side.toUpperCase()+' · FORECAST ONLY':'WAIT · NO VALID DATA';
  const settled=paper.filter(x=>x.result==='yes'||x.result==='no');
  const wins=settled.filter(x=>x.side===x.result).length;
  $('paperCount').textContent=paper.length;$('paperSettled').textContent=settled.length;
  $('paperHit').textContent=settled.length?((wins/settled.length)*100).toFixed(1)+'% (observed)':'Not established';
  const n=settled.length,z=1.96,p=n?wins/n:0,denom=1+z*z/n,center=n?(p+z*z/(2*n))/denom:0,half=n?z*Math.sqrt((p*(1-p)+z*z/(4*n))/n)/denom:0;
  $('paperCI').textContent=n?((center-half)*100).toFixed(1)+'%–'+((center+half)*100).toFixed(1)+'%':'Not established';
- $('paperValidation').textContent=settled.length<100?'Insufficient outcomes · '+settled.length+'/100 minimum for preliminary review':'Review calibration, fees, and out-of-sample results before trading';
+ showLearning();$('paperValidation').textContent=settled.length<100?'Insufficient outcomes · '+settled.length+'/100 minimum for preliminary review':'Review calibration, fees, and out-of-sample results before trading';
  $('paperRows').innerHTML=paper.slice(-12).reverse().map(x=>'<tr><td>'+escapeHTML(x.market)+'</td><td>'+escapeHTML(x.at)+'</td><td>'+escapeHTML(x.side.toUpperCase())+'</td><td>'+escapeHTML((x.result||'PENDING').toUpperCase())+'</td></tr>').join('')||'<tr><td colspan="4">No forecasts yet.</td></tr>';
 }
 function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function paperRecord(){
- const lean=paperLean();if(!lean){$('paperStatus').textContent='No paper forecast: need a fresh active contract, current BTC price, candles, and agreement between signals.';return;}
- const market=kalshiMarket.ticker;if(paper.some(x=>x.market===market)){$('paperStatus').textContent='One forecast per market allowed to prevent cherry-picking.';return;}
- paper.push({market,at:new Date().toISOString(),side:lean.side,strike:lean.strike,spot:lean.price,close:new Date(lean.close).toISOString(),model_version:'rule-proxy-v2',result:null});paperSave();paperRender();$('paperStatus').textContent='Paper forecast recorded before expiry. No order placed.';
+ const lean=paperLean();if(!lean){$('paperStatus').textContent='No forecast: need a fresh contract, Coinbase spot price and valid candle volatility.';return;}
+ const market=kalshiMarket.ticker;if(paper.some(x=>x.market===market)){$('paperStatus').textContent='One forecast per market allowed to prevent duplicate training examples.';return;}
+ paper.push({market,at:new Date().toISOString(),side:lean.side,strike:lean.strike,spot:lean.price,close:new Date(lean.close).toISOString(),model_version:learningModel().version,baseYes:lean.baseYes,predYes:lean.predYes,result:null});paperSave();paperRender();$('paperStatus').textContent='Forecast recorded before expiry for outcome-based learning. No order placed.';
 }
 async function paperVerify(){
  let count=0,errors=0;
@@ -238,7 +276,7 @@ async function paperVerify(){
  }
  paperSave();paperRender();$('paperStatus').textContent='Official result check: '+count+' graded, '+errors+' requests failed. Unresolved forecasts remain pending; never infer settlement from Coinbase.';
 }
-function paperExport(){const headers=['market','at','side','strike','spot','close','model_version','result'];const csv=[headers.join(','),...paper.map(r=>headers.map(k=>JSON.stringify(r[k]??'')).join(','))].join('\r\n');const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='oracle-kalshi-paper.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);}
+function paperExport(){const headers=['market','at','side','strike','spot','close','model_version','baseYes','predYes','result'];const csv=[headers.join(','),...paper.map(r=>headers.map(k=>JSON.stringify(r[k]??'')).join(','))].join('\r\n');const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='oracle-kalshi-paper.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);}
 $('paperRecord').onclick=paperRecord;
 function autoRecordPaper(){const lean=paperLean();if(!lean||paper.some(x=>x.market===kalshiMarket?.ticker))return;paperRecord();}
 setInterval(autoRecordPaper,60000);$('paperVerify').onclick=paperVerify;$('paperExport').onclick=paperExport;
