@@ -1,0 +1,26 @@
+
+name: DAGGER BTC 15-minute collector
+
+on:
+  schedule:
+    - cron: '2,17,32,47 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call DAGGER BTC collector
+        env:
+          COLLECTOR_URL: ${{ secrets.DAGGER_COLLECTOR_URL }}
+          COLLECTOR_SECRET: ${{ secrets.DAGGER_CRON_SECRET }}
+        run: |
+          curl --fail-with-body --show-error --silent \
+            --retry 2 \
+            --max-time 90 \
+            -H "Authorization: Bearer ${COLLECTOR_SECRET}" \
+            "${COLLECTOR_URL}"
