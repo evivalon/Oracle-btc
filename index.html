@@ -23,7 +23,7 @@ h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 14px;
 </section>
 <section class="panel" style="margin-bottom:16px" aria-label="Kalshi 15 minute Bitcoin market">
 <h2>Kalshi · BTC up in next 15 minutes? · KXBTC15M</h2>
-<div class="stat" style="margin:12px 0;border-color:#52708a;background:#142332"><label>15-MINUTE KALSHI PAPER BID SIGNAL</label><strong id="bidAction" style="font-size:27px;color:#e8b96d">WAIT · NO BID</strong><p id="bidReason" class="foot" style="margin-top:8px">Waiting for fresh Kalshi contract and Coinbase price data.</p><p class="foot">UP = paper YES; DOWN = paper NO. Directional research only; not a verified profitable trade recommendation.</p></div><div class="stats"><div class="stat"><label>Active contract</label><strong id="kalshiTicker" style="font-size:13px">Loading…</strong></div><div class="stat"><label>Kalshi target (BRTI)</label><strong id="kalshiStrike">—</strong></div><div class="stat"><label>Time remaining (min / sec)</label><strong id="kalshiCountdown">—</strong></div><div class="stat"><label>YES / NO indication</label><strong id="kalshiCall">UNAVAILABLE</strong></div></div>
+<div class="stat" style="margin:12px 0;border-color:#52708a;background:#142332"><label>15-MINUTE KALSHI PAPER VALUE SCREEN</label><strong id="bidAction" style="font-size:27px;color:#e8b96d">WAIT · NO BID</strong><p id="bidReason" class="foot" style="margin-top:8px">Waiting for fresh Kalshi contract and Coinbase price data.</p><p class="foot">Paper opportunity screen only. Estimated probabilities are uncalibrated and do not predict guaranteed profit.</p><div class="reason"><span class="muted">Estimated YES / NO chance (uncalibrated)</span><b id="edgeProb">—</b></div><div class="reason"><span class="muted">Estimated YES / NO buy price (ask)</span><b id="edgeAsk">—</b></div><div class="reason"><span class="muted">Estimated YES / NO net edge per contract</span><b id="edgeEV">—</b></div><p id="edgeNote" class="foot">Waiting for sufficient data to estimate paper-trade value.</p></div><div class="stats"><div class="stat"><label>Active contract</label><strong id="kalshiTicker" style="font-size:13px">Loading…</strong></div><div class="stat"><label>Kalshi target (BRTI)</label><strong id="kalshiStrike">—</strong></div><div class="stat"><label>Time remaining (min / sec)</label><strong id="kalshiCountdown">—</strong></div><div class="stat"><label>YES / NO indication</label><strong id="kalshiCall">UNAVAILABLE</strong></div></div>
 <div class="reason"><span class="muted">Coinbase price vs Kalshi target (indicative only)</span><b id="kalshiDistance">—</b></div>
 <div class="reason"><span class="muted">Kalshi YES bid / NO bid</span><b id="kalshiBook">—</b></div>
 <p class="foot" id="kalshiStatus">Connecting to public Kalshi market data…</p>
@@ -77,23 +77,59 @@ const GRANULARITY={'15m':900,'5m':300,'1h':3600};
 async function getJSON(url){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(url,{signal:controller.signal,cache:'no-store',headers:{'Accept':'application/json'}});if(!r.ok){let msg='HTTP '+r.status;try{const data=await r.json();msg+=' '+(data.error||'')+(data.detail?' ('+data.detail+')':'');}catch{}throw Error(msg);}return await r.json();}finally{clearTimeout(timeout)}}
 
 function num(v){if(v===null||v===undefined||v==='')return NaN;const n=Number(v);return Number.isFinite(n)?n:NaN;}
+// Experimental probability estimate: normal diffusion based on realized Coinbase returns.
+// This is NOT a trained or calibrated Kalshi settlement model.
+function normCDF(x){const t=1/(1+0.2316419*Math.abs(x));const d=0.3989422804014327*Math.exp(-x*x/2);const p=1-d*t*(0.319381530+t*(-0.356563782+t*(1.781477937+t*(-1.821255978+t*1.330274429))));return x>=0?p:1-p;}
+function estimateSettlementProbability(strike,seconds){
+ if(candles.length<65||!Number.isFinite(ticker)||ticker<=0||!Number.isFinite(strike)||strike<=0)return null;
+ const sorted=candles.slice(-121).filter(c=>Number.isFinite(c.c)&&c.c>0&&Number.isFinite(c.t));
+ const returns=[];for(let i=1;i<sorted.length;i++){const dt=(sorted[i].t-sorted[i-1].t)/60;if(dt>0&&dt<=65)returns.push({r:Math.log(sorted[i].c/sorted[i-1].c),dt});}
+ if(returns.length<35)return null;
+ const avg=returns.reduce((a,x)=>a+x.r,0)/returns.length;
+ const variance=returns.reduce((a,x)=>a+(x.r-avg)**2/x.dt,0)/Math.max(1,returns.length-1);
+ const volPerSqrtMinute=Math.sqrt(variance);
+ if(!Number.isFinite(volPerSqrtMinute)||volPerSqrtMinute<=0)return null;
+ // A conservative 0.08% floor for spot/index mismatch and settlement averaging uncertainty.
+ const sigma=Math.sqrt(volPerSqrtMinute**2*Math.max(seconds/60,1)+0.0008**2);
+ const z=Math.log(ticker/strike)/sigma;
+ return {yes:Math.max(0.01,Math.min(0.99,normCDF(z))),sigma,observations:returns.length};
+}
+function feePerContract(price){return Math.ceil((0.07*price*(1-price))*10000)/10000;}
 function showBidAction(){
  const el=$('bidAction'),reason=$('bidReason');if(!el||!reason)return;
- const m=kalshiMarket,now=Date.now();let action='WAIT · NO BID',why='Waiting for fresh Kalshi contract and Coinbase price data.',color='var(--amber)';
- if(m&&signal){
-  const close=Date.parse(m.close_time||m.expiration_time||''),strike=num(m.floor_strike),remaining=close-now;
+ const probEl=$('edgeProb'),askEl=$('edgeAsk'),evEl=$('edgeEV'),noteEl=$('edgeNote');
+ const set=(node,value)=>{if(node)node.textContent=value;};
+ let action='WAIT · NO BID',why='Waiting for fresh Kalshi and Coinbase data.',color='var(--amber)';
+ set(probEl,'—');set(askEl,'—');set(evEl,'—');set(noteEl,'Experimental estimate only; not trained on Kalshi outcomes.');
+ const m=kalshiMarket,now=Date.now();
+ if(m){
+  const close=Date.parse(m.close_time||m.expiration_time||''),strike=num(m.floor_strike),seconds=(close-now)/1000;
   const fresh=now-kalshiFetchedAt<90000&&now-lastPriceAt<90000;
-  if(!fresh)why='Market data is stale; no paper bid.';
-  else if(!['active','open'].includes(m.status)||!Number.isFinite(close)||remaining<=0||remaining>15*60*1000)why='No eligible active 15-minute contract.';
-  else if(!Number.isFinite(strike)||strike<=0)why='Kalshi settlement target unavailable; no paper bid.';
-  else if(!Number.isFinite(ticker)||!Number.isFinite(signal.a)||signal.a<=0)why='Coinbase price or volatility unavailable.';
+  const y=num(m.yes_bid_dollars),n=num(m.no_bid_dollars);
+  const yesBid=Number.isFinite(y)?y:num(m.yes_bid)/100,noBid=Number.isFinite(n)?n:num(m.no_bid)/100;
+  const yesAsk=1-noBid,noAsk=1-yesBid;
+  if(!fresh)why='Stale market data: no paper trade.';
+  else if(!['active','open'].includes(m.status)||!Number.isFinite(seconds)||seconds<=0||seconds>900)why='No eligible active 15-minute market.';
+  else if(!Number.isFinite(strike)||strike<=0)why='Kalshi target unavailable.';
+  else if(!Number.isFinite(yesBid)||!Number.isFinite(noBid)||yesAsk<=0||noAsk<=0||yesAsk>1||noAsk>1)why='Valid two-sided bids needed to calculate executable ask prices.';
+  else if(yesAsk+noAsk<1-1e-6)why='Inconsistent order book quotes; skip.';
   else {
-   const gap=ticker-strike,margin=Math.max(20,signal.a*.15);
-   if(Math.abs(gap)<margin)why='BTC is too close to the Kalshi target; skip.';
-   else if(signal.strength<60)why='Trend strength below paper-signal threshold; skip.';
-   else if(gap>0&&signal.dir==='UP'){action='PAPER BID UP';color='var(--green)';why='YES directional lean: Coinbase above target and trend agrees. Not a calibrated probability.';}
-   else if(gap<0&&signal.dir==='DOWN'){action='PAPER BID DOWN';color='var(--red)';why='NO directional lean: Coinbase below target and trend agrees. Not a calibrated probability.';}
-   else why='Coinbase target position and trend disagree; skip.';
+   const estimate=estimateSettlementProbability(strike,seconds);
+   if(!estimate)why='Insufficient candle history to estimate volatility.';
+   else {
+    const pYes=estimate.yes,pNo=1-pYes;
+    const yesEV=pYes-yesAsk-feePerContract(yesAsk),noEV=pNo-noAsk-feePerContract(noAsk);
+    set(probEl,(pYes*100).toFixed(1)+'% / '+(pNo*100).toFixed(1)+'%');
+    set(askEl,(yesAsk*100).toFixed(1)+'¢ / '+(noAsk*100).toFixed(1)+'¢');
+    set(evEl,(yesEV>=0?'+':'')+(yesEV*100).toFixed(1)+'¢ / '+(noEV>=0?'+':'')+(noEV*100).toFixed(1)+'¢');
+    set(noteEl,'Assumes immediate purchase at best inferred ask, 1 contract, standard taker fee estimate. Excludes slippage. Model not calibrated to BRTI settlement.');
+    // 10 percentage-point edge hurdle is a research filter, not evidence of profitability.
+    const hurdle=0.10;
+    if(seconds<60)why='Less than 60 seconds left: price/index timing risk too high.';
+    else if(Math.max(yesEV,noEV)<hurdle)why='No estimated edge above the 10¢ research hurdle after estimated fees.';
+    else if(yesEV>=noEV){action='PAPER OPPORTUNITY · UP';color='var(--green)';why='Experimental YES value screen passed. NOT a validated real-money trade recommendation.';}
+    else {action='PAPER OPPORTUNITY · DOWN';color='var(--red)';why='Experimental NO value screen passed. NOT a validated real-money trade recommendation.';}
+   }
   }
  }
  el.textContent=action;el.style.color=color;reason.textContent=why;
