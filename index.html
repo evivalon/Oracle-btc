@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ORACLE BTC — Independent Signal Lab</title>
+<title>ORACLE BTC — Kalshi 15M Validation</title>
 <style>
 :root{--bg:#090d12;--panel:#111821;--panel2:#0d141c;--line:#23303d;--muted:#8b9aaa;--text:#e8eef5;--green:#39d49a;--red:#ff647c;--amber:#e7b45c;--blue:#75b8ff}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 20% -10%,#18283a 0,transparent 45%),var(--bg);color:var(--text);font:14px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
@@ -12,7 +12,7 @@ h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 14px;
 </style>
 <link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#090d12"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Oracle BTC"><link rel="apple-touch-icon" href="icon-192.png"></head>
 <body><main class="wrap">
-<header class="top"><div class="brand"><div class="mark">Ω</div><div><h1>ORACLE / BTC</h1><small>INDEPENDENT SIGNAL & BACKTEST LAB</small></div></div><div class="status"><span class="dot" id="dot"></span><span id="connection">Connecting to Coinbase market data…</span></div></header>
+<header class="top"><div class="brand"><div class="mark">Ω</div><div><h1>ORACLE / BTC</h1><small>KALSHI 15-MIN BTC · RESEARCH DASHBOARD</small></div></div><div class="status"><span class="dot" id="dot"></span><span id="connection">Connecting to Coinbase market data…</span></div></header>
 <section class="panel" style="margin-bottom:16px">
  <div class="muted" style="font-size:11px;letter-spacing:.13em">BITCOIN / USD · COINBASE</div>
  <div class="pricebar"><div class="price" id="price">—</div><div class="change" id="change">—</div><span class="muted" id="updated">Waiting for ticker</span></div>
@@ -21,25 +21,43 @@ h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 14px;
  </div>
  <div class="controls"><label class="muted">Signal horizon</label><select id="interval"><option value="15m" selected>15 minutes</option><option value="5m">5 minutes</option><option value="1h">1 hour</option></select><button id="refresh">Refresh candles</button><span class="muted" id="candleStatus">Loading candles…</span></div>
 </section>
+<section class="panel" style="margin-bottom:16px" aria-label="Kalshi 15 minute Bitcoin market">
+<h2>Kalshi · BTC up in next 15 minutes? · KXBTC15M</h2>
+<div class="stats"><div class="stat"><label>Active contract</label><strong id="kalshiTicker" style="font-size:13px">Loading…</strong></div><div class="stat"><label>Kalshi target (BRTI)</label><strong id="kalshiStrike">—</strong></div><div class="stat"><label>Time remaining</label><strong id="kalshiCountdown">—</strong></div><div class="stat"><label>YES / NO indication</label><strong id="kalshiCall">UNAVAILABLE</strong></div></div>
+<div class="reason"><span class="muted">Coinbase price vs Kalshi target (indicative only)</span><b id="kalshiDistance">—</b></div>
+<div class="reason"><span class="muted">Kalshi YES bid / NO bid</span><b id="kalshiBook">—</b></div>
+<p class="foot" id="kalshiStatus">Connecting to public Kalshi market data…</p>
+<p class="foot"><strong>SAFETY GATE: NO LIVE TRADE RECOMMENDATIONS.</strong> Until a prospective dataset demonstrates calibrated settlement probabilities and positive out-of-sample returns after fees, the app will not label any contract as a buy. No broker authentication or order execution is included.</p><p class="foot">Kalshi settles this series using CF Benchmarks BRTI 60-second averages, not Coinbase spot prices. The YES/NO indication is a directional proxy, not a calibrated contract probability or a verified settlement forecast. No real orders are placed.</p>
+</section>
+
+<section class="panel" style="margin-bottom:16px" id="paperLab">
+<h2>Kalshi 15M · forward-only validation · v2</h2>
+<div class="stats"><div class="stat"><label>Trading decision</label><strong id="paperDecision" style="color:var(--amber)">NO TRADE</strong></div><div class="stat"><label>Recorded forecasts</label><strong id="paperCount">0</strong></div><div class="stat"><label>Settled forecasts</label><strong id="paperSettled">0</strong></div><div class="stat"><label>Observed hit rate</label><strong id="paperHit">Not established</strong></div></div>
+<div class="reason"><span class="muted">Validation status</span><b id="paperValidation">Insufficient independently verified outcomes</b></div><div class="reason"><span class="muted">95% Wilson confidence interval · directional hit rate</span><b id="paperCI">Not established</b></div><div class="reason"><span class="muted">Paper forecasting mode</span><b id="autoPaperStatus">Automatic · eligible markets only</b></div>
+<div class="reason"><span class="muted">Paper signal (not a calibrated probability)</span><b id="paperSignal">WAIT</b></div>
+<div class="controls" style="margin-top:12px"><button id="paperRecord">Record paper forecast now</button><button id="paperVerify">Check official settlements</button><button id="paperExport">Export paper CSV</button></div>
+<p class="foot" id="paperStatus">Only actual Kalshi-settled outcomes count. Automatic recording occurs while the app is open and fresh data is available; it does not run in the background. This browser-based log persists locally on this device, but it is not a continuous cloud database. Never use the hit rate alone as a trading edge.</p>
+<div class="tablewrap"><table><thead><tr><th>Market</th><th>Recorded UTC</th><th>Paper lean</th><th>Official result</th></tr></thead><tbody id="paperRows"><tr><td colspan="4">No forecasts yet.</td></tr></tbody></table></div>
+</section>
 <div class="grid">
  <section class="panel"><h2>Signal engine</h2><div class="signalrow"><div><div class="muted" style="font-size:11px">MODEL DIRECTION</div><div class="signal" id="direction">WAIT</div></div><span class="pill" id="quality">CALIBRATING</span></div>
- <div class="reason"><span class="muted">Estimated directional probability</span><b id="prob">—</b></div><div class="meter"><span id="probbar"></span></div>
+ <div class="reason"><span class="muted">Heuristic directional score (not Kalshi odds)</span><b id="prob">—</b></div><div class="meter"><span id="probbar"></span></div>
  <div class="reason"><span class="muted">Signal strength</span><b id="strength">—</b></div><div class="meter"><span id="strengthbar"></span></div>
  <div class="reason"><span class="muted">Volatility / flip risk proxy</span><b id="risk">—</b></div><div class="meter red"><span id="riskbar"></span></div>
  <div class="reason"><span class="muted">EMA trend vote</span><b id="emaVote">—</b></div><div class="reason"><span class="muted">RSI vote</span><b id="rsiVote">—</b></div><div class="reason"><span class="muted">MACD vote</span><b id="macdVote">—</b></div><div class="reason"><span class="muted">Volume vote</span><b id="volumeVote">—</b></div>
- <p class="foot">Probability is a heuristic score, not a statistically calibrated forecast. It is not the original Zero's Oracle model.</p></section>
+ <p class="foot">This heuristic score is not a statistically calibrated Kalshi probability. It is not the original Zero's Oracle model.</p></section>
  <section class="panel"><h2>Price structure · recent candles</h2><canvas id="chart" width="900" height="360"></canvas><div class="foot">Candles: Coinbase Exchange · BTC-USD</div></section>
- <section class="panel wide"><div class="signalrow"><h2>Historical walk-forward test</h2><span class="pill">No look-ahead · fee/slippage excluded</span></div>
+ <section class="panel wide"><div class="signalrow"><h2>Coinbase directional backtest · not Kalshi settlement validation</h2><span class="pill">Not a Kalshi P&L backtest · fees excluded</span></div>
  <div class="controls" style="margin-bottom:12px"><label class="muted">History</label><select id="history"><option value="500">500 candles</option><option value="1000" selected>1,000 candles</option><option value="1500">1,500 candles</option></select><button id="backtest">Run backtest</button><span class="muted" id="btStatus">Not run yet</span></div>
  <div class="stats"><div class="stat"><label>Signals tested</label><strong id="btTrades">—</strong></div><div class="stat"><label>Directional hit rate</label><strong id="btWin">—</strong></div><div class="stat"><label>Average move</label><strong id="btMove">—</strong></div><div class="stat"><label>Max drawdown (R)</label><strong id="btDD">—</strong></div></div>
  <div class="tablewrap"><table><thead><tr><th>UTC time</th><th>Call</th><th>Entry</th><th>Next close</th><th>Move</th><th>Result</th></tr></thead><tbody id="btRows"><tr><td colspan="6" class="empty">Run the backtest to evaluate the rules against historical candles.</td></tr></tbody></table></div>
  </section>
 </div>
 <div class="disclaimer"><b>Risk notice:</b> This is an independent educational market-analysis tool, not financial advice and not an execution system. Signals are rule-based heuristics; historical hit rate does not predict future results. Crypto is volatile. Never risk money based only on this dashboard.</div>
-<footer class="foot">ORACLE BTC · Independent implementation · Market data: Coinbase public endpoints · Price polling every 10 seconds</footer>
+<footer class="foot">ORACLE BTC · Paper research only · Independent implementation · Market data: Coinbase public endpoints · Price and candle refresh every 60 seconds</footer>
 </main>
 <script>
-const $=id=>document.getElementById(id);let candles=[],ticker=null,signal=null,lastPriceAt=0;
+const $=id=>document.getElementById(id);let candles=[],ticker=null,signal=null,lastPriceAt=0,kalshiMarket=null,kalshiFetchedAt=0;
 const fmt=n=>Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const pct=n=>(n>=0?'+':'')+n.toFixed(2)+'%';
 function ema(a,p){let k=2/(p+1),v=a[0];return a.map((x,i)=>v=i===0?x:x*k+v*(1-k))}
@@ -53,14 +71,95 @@ function render(){let x=calc(candles);if(!x)return;signal=x;let last=candles.at(
  $('momentum').textContent=pct(x.mom);$('rsi').textContent=x.rr.toFixed(1);$('atr').textContent='$'+fmt(x.a);$('regime').textContent=x.regime;
  $('direction').textContent=x.dir;$('direction').style.color=x.dir==='UP'?'var(--green)':x.dir==='DOWN'?'var(--red)':'var(--amber)';$('quality').textContent=x.strength>=80?'STRONG':x.strength>=60?'MODERATE':'WEAK';
  $('prob').textContent=x.prob.toFixed(0)+'%';$('probbar').style.width=x.prob+'%';$('strength').textContent=x.strength.toFixed(0)+'/100';$('strengthbar').style.width=x.strength+'%';$('risk').textContent=x.risk.toFixed(0)+'/100';$('riskbar').style.width=x.risk+'%';
- ['emaVote','rsiVote','macdVote','volumeVote'].forEach((id,i)=>$(id).textContent=x.votes[[0,2,3,4][i]]>0?'BULLISH':x.votes[[0,2,3,4][i]]<0?'BEARISH':'NEUTRAL');draw();}
+ ['emaVote','rsiVote','macdVote','volumeVote'].forEach((id,i)=>$(id).textContent=x.votes[[0,2,3,4][i]]>0?'BULLISH':x.votes[[0,2,3,4][i]]<0?'BEARISH':'NEUTRAL');draw();showKalshi();}
 function draw(){let c=$('chart'),ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);if(!candles.length)return;let data=candles.slice(-65),lo=Math.min(...data.map(x=>x.l)),hi=Math.max(...data.map(x=>x.h)),pad=22,span=hi-lo||1;ctx.strokeStyle='#263440';ctx.lineWidth=1;for(let i=0;i<5;i++){let y=pad+i*(h-2*pad)/4;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}let cw=w/data.length*.58;data.forEach((d,i)=>{let x=(i+.5)*w/data.length,y=v=>pad+(hi-v)/span*(h-2*pad),up=d.c>=d.o;ctx.strokeStyle=up?'#39d49a':'#ff647c';ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(x,y(d.h));ctx.lineTo(x,y(d.l));ctx.stroke();let top=y(Math.max(d.o,d.c)),bottom=y(Math.min(d.o,d.c));ctx.fillRect(x-cw/2,top,cw,Math.max(2,bottom-top));});ctx.fillStyle='#91a3b4';ctx.font='12px sans-serif';ctx.fillText('$'+fmt(hi),8,14);ctx.fillText('$'+fmt(lo),8,h-5);}
 const GRANULARITY={'15m':900,'5m':300,'1h':3600};
 async function getJSON(url){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(url,{signal:controller.signal,cache:'no-store',headers:{'Accept':'application/json'}});if(!r.ok)throw Error('HTTP '+r.status);return await r.json();}finally{clearTimeout(timeout)}}
-async function loadPrice(){try{const raw=await getJSON('https://api.coinbase.com/v2/prices/BTC-USD/spot');const price=Number(raw?.data?.amount);if(!Number.isFinite(price)||price<=0)throw Error('Invalid price response');ticker=price;lastPriceAt=Date.now();$('price').textContent='$'+fmt(price);$('updated').textContent='Spot quote · '+new Date().toLocaleTimeString();$('connection').textContent='Coinbase BTC price connected';$('dot').classList.add('live');}catch(e){$('dot').classList.remove('live');$('connection').textContent='Price feed error: '+e.message+(candles.length?' · candle data may still work':'');}}
+
+function num(v){if(v===null||v===undefined||v==='')return NaN;const n=Number(v);return Number.isFinite(n)?n:NaN;}
+function showKalshi(){
+ const m=kalshiMarket,now=Date.now();if(!m){$('kalshiCall').textContent='UNAVAILABLE';return;}
+ const close=Date.parse(m.close_time||m.expiration_time||'');const strike=num(m.floor_strike);
+ const active=Number.isFinite(close)&&close>now&&['active','open'].includes(m.status)&&Number.isFinite(strike)&&strike>0&&now-kalshiFetchedAt<180000;
+ $('kalshiTicker').textContent=m.ticker||'—';$('kalshiStrike').textContent=Number.isFinite(strike)?'$'+fmt(strike):'Not published';
+ $('kalshiCountdown').textContent=Number.isFinite(close)?(close>now?Math.floor((close-now)/60)+':'+String(Math.floor((close-now)/1000)%60).padStart(2,'0'):'CLOSED'):'Unknown';
+ const y=num(m.yes_bid_dollars),n=num(m.no_bid_dollars);
+ const y2=Number.isFinite(y)?y:num(m.yes_bid)/100,n2=Number.isFinite(n)?n:num(m.no_bid)/100;
+ $('kalshiBook').textContent=(Number.isFinite(y2)?Math.round(y2*100)+'¢':'—')+' / '+(Number.isFinite(n2)?Math.round(n2*100)+'¢':'—');
+ $('kalshiDistance').textContent=Number.isFinite(ticker)&&Number.isFinite(strike)?(ticker>=strike?'+':'')+'$'+fmt(ticker-strike):'—';
+ if(!active){$('kalshiCall').textContent='UNAVAILABLE';$('kalshiCall').style.color='var(--amber)';return;}
+ if(!Number.isFinite(ticker)||Date.now()-lastPriceAt>150000||!signal){$('kalshiCall').textContent='WAIT · DATA';$('kalshiCall').style.color='var(--amber)';return;}
+ // This is a proxy only: Coinbase price is not the BRTI settlement index.
+ const gap=ticker-strike;const proxy=gap>0?'YES LEAN':gap<0?'NO LEAN':'WAIT';
+ $('kalshiCall').textContent=proxy+' · PROXY';$('kalshiCall').style.color=gap>0?'var(--green)':gap<0?'var(--red)':'var(--amber)';
+}
+async function loadKalshi(){
+ try{
+  const raw=await getJSON('https://external-api.kalshi.com/trade-api/v2/markets?series_ticker=KXBTC15M&status=open&limit=100');
+  if(!Array.isArray(raw.markets))throw Error('Invalid Kalshi response');
+  const now=Date.now();const markets=raw.markets.filter(m=>['active','open'].includes(m.status)&&Date.parse(m.close_time||m.expiration_time||'')>now).sort((a,b)=>Date.parse(a.close_time)-Date.parse(b.close_time));
+  kalshiMarket=markets[0]||null;kalshiFetchedAt=Date.now();
+  $('kalshiStatus').textContent=kalshiMarket?'Kalshi public API · last checked '+new Date().toLocaleTimeString():'No currently active KXBTC15M contract returned; no prediction displayed';
+ }catch(e){kalshiMarket=null;$('kalshiStatus').textContent='Kalshi feed unavailable: '+e.message+'. If blocked by browser CORS, a server-side API proxy is needed.';}
+ showKalshi();
+}
+
+async function loadPrice(){try{const raw=await getJSON('https://api.coinbase.com/v2/prices/BTC-USD/spot');const price=Number(raw?.data?.amount);if(!Number.isFinite(price)||price<=0)throw Error('Invalid price response');ticker=price;lastPriceAt=Date.now();$('price').textContent='$'+fmt(price);$('updated').textContent='Spot quote · '+new Date().toLocaleTimeString();$('connection').textContent='Coinbase connected · auto-refresh 60s';$('dot').classList.add('live');showKalshi();}catch(e){$('dot').classList.remove('live');$('connection').textContent='Price feed error: '+e.message+(candles.length?' · candle data may still work':'');}}
 async function loadCandles(){const int=$('interval').value; $('candleStatus').textContent='Fetching '+int+' Coinbase candles…';try{const granularity=GRANULARITY[int];const raw=await getJSON('https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity='+granularity);if(!Array.isArray(raw))throw Error(raw?.message||'Unexpected candle response');const cs=raw.map(k=>({t:Number(k[0])*1000,l:+k[1],h:+k[2],o:+k[3],c:+k[4],v:+k[5]})).filter(k=>Object.values(k).every(Number.isFinite)).sort((a,b)=>a.t-b.t);if(cs.length<35)throw Error('Insufficient candles: '+cs.length);candles=cs;$('candleStatus').textContent=cs.length+' Coinbase candles loaded · '+new Date().toLocaleTimeString();render();}catch(e){$('candleStatus').textContent='Candle feed error: '+e.message+'. Price feed works independently.';}}
 async function runBacktest(){let n=+$('history').value;$('btStatus').textContent='Downloading Coinbase historical candles…';try{const granularity=GRANULARITY[$('interval').value],period=granularity*300;let cs=[];let end=Math.floor(Date.now()/1000);const requests=Math.ceil(n/300);for(let j=0;j<requests;j++){const start=end-period;const url='https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity='+granularity+'&start='+new Date(start*1000).toISOString()+'&end='+new Date(end*1000).toISOString();const raw=await getJSON(url);if(!Array.isArray(raw))throw Error(raw?.message||'Unexpected history response');cs.push(...raw.map(k=>({t:Number(k[0])*1000,l:+k[1],h:+k[2],o:+k[3],c:+k[4],v:+k[5]})));end=start;}cs=[...new Map(cs.filter(k=>Object.values(k).every(Number.isFinite)).map(k=>[k.t,k])).values()].sort((a,b)=>a.t-b.t).slice(-n);let rows=[],wins=0,sum=0,eq=0,peak=0,maxdd=0;for(let i=55;i<cs.length-1;i++){let x=calc(cs.slice(0,i+1));if(!x||x.dir==='WAIT'||x.strength<40)continue;let move=(cs[i+1].c/cs[i+1].o-1)*100*(x.dir==='UP'?1:-1);rows.push({t:cs[i+1].t,dir:x.dir,entry:cs[i+1].o,exit:cs[i+1].c,move});if(move>0)wins++;sum+=move;eq+=move;peak=Math.max(peak,eq);maxdd=Math.max(maxdd,peak-eq);}$('btTrades').textContent=rows.length;$('btWin').textContent=rows.length?(wins/rows.length*100).toFixed(1)+'%':'—';$('btMove').textContent=rows.length?pct(sum/rows.length):'—';$('btDD').textContent=rows.length?maxdd.toFixed(2)+' percentage points':'—';$('btStatus').textContent='Completed · '+cs.length+' candles · '+new Date().toLocaleTimeString();$('btRows').innerHTML=rows.slice(-12).reverse().map(z=>`<tr><td>${new Date(z.t).toLocaleString()}</td><td style="color:${z.dir==='UP'?'var(--green)':'var(--red)'}">${z.dir}</td><td>$${fmt(z.entry)}</td><td>$${fmt(z.exit)}</td><td>${pct(z.move)}</td><td style="color:${z.move>0?'var(--green)':'var(--red)'}">${z.move>0?'WIN':'LOSS'}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">No qualifying signals in this sample.</td></tr>';}catch(e){$('btStatus').textContent='Backtest error: '+e.message;}}
-$('refresh').onclick=()=>{loadCandles();loadPrice()};$('interval').onchange=loadCandles;$('backtest').onclick=runBacktest;loadPrice();loadCandles();setInterval(loadPrice,10000);setInterval(loadCandles,60000);
+$('refresh').onclick=()=>{loadCandles();loadPrice();loadKalshi()};$('interval').onchange=loadCandles;$('backtest').onclick=runBacktest;loadPrice();loadCandles();loadKalshi();setInterval(()=>{loadPrice();loadCandles();loadKalshi();},60000);setInterval(showKalshi,1000);
+
+// Paper validation: independent market outcome evaluation. Does not claim calibrated probabilities.
+const PAPER_KEY='oracle_kalshi_paper_v1';
+let paper=[];
+try{const v=JSON.parse(localStorage.getItem(PAPER_KEY)||'[]');if(Array.isArray(v))paper=v.filter(x=>x&&typeof x.market==='string').slice(-2000);}catch(e){}
+function paperSave(){try{localStorage.setItem(PAPER_KEY,JSON.stringify(paper.slice(-2000)));}catch(e){$('paperStatus').textContent='Local storage unavailable; export CSV to preserve records.';}}
+function paperLean(){
+ const m=kalshiMarket,now=Date.now();
+ if(!m||!m.ticker||!['active','open'].includes(m.status))return null;
+ const close=Date.parse(m.close_time||m.expiration_time||'');
+ const strike=num(m.floor_strike),price=ticker;
+ if(!Number.isFinite(close)||close<=now||close-now>15*60*1000||!Number.isFinite(strike)||strike<=0||!Number.isFinite(price)||now-lastPriceAt>90000||now-kalshiFetchedAt>90000||!signal)return null;
+ // Require meaningful distance from strike relative to recent 15m ATR, and agreement with existing heuristic.
+ const margin=Math.max(20,signal.a*.15);
+ if(Math.abs(price-strike)<margin)return null;
+ const side=price>strike?'yes':'no';
+ if((side==='yes'&&signal.dir!=='UP')||(side==='no'&&signal.dir!=='DOWN'))return null;
+ return {side,close,strike,price,margin};
+}
+function paperRender(){
+ const lean=paperLean();$('paperDecision').textContent='NO TRADE';
+ $('paperSignal').textContent=lean?lean.side.toUpperCase()+' · UNVALIDATED':'WAIT · NO QUALIFYING SIGNAL';
+ const settled=paper.filter(x=>x.result==='yes'||x.result==='no');
+ const wins=settled.filter(x=>x.side===x.result).length;
+ $('paperCount').textContent=paper.length;$('paperSettled').textContent=settled.length;
+ $('paperHit').textContent=settled.length?((wins/settled.length)*100).toFixed(1)+'% (observed)':'Not established';
+ const n=settled.length,z=1.96,p=n?wins/n:0,denom=1+z*z/n,center=n?(p+z*z/(2*n))/denom:0,half=n?z*Math.sqrt((p*(1-p)+z*z/(4*n))/n)/denom:0;
+ $('paperCI').textContent=n?((center-half)*100).toFixed(1)+'%–'+((center+half)*100).toFixed(1)+'%':'Not established';
+ $('paperValidation').textContent=settled.length<100?'Insufficient outcomes · '+settled.length+'/100 minimum for preliminary review':'Review calibration, fees, and out-of-sample results before trading';
+ $('paperRows').innerHTML=paper.slice(-12).reverse().map(x=>'<tr><td>'+escapeHTML(x.market)+'</td><td>'+escapeHTML(x.at)+'</td><td>'+escapeHTML(x.side.toUpperCase())+'</td><td>'+escapeHTML((x.result||'PENDING').toUpperCase())+'</td></tr>').join('')||'<tr><td colspan="4">No forecasts yet.</td></tr>';
+}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function paperRecord(){
+ const lean=paperLean();if(!lean){$('paperStatus').textContent='No paper forecast: need a fresh active contract, current BTC price, candles, and agreement between signals.';return;}
+ const market=kalshiMarket.ticker;if(paper.some(x=>x.market===market)){$('paperStatus').textContent='One forecast per market allowed to prevent cherry-picking.';return;}
+ paper.push({market,at:new Date().toISOString(),side:lean.side,strike:lean.strike,spot:lean.price,close:new Date(lean.close).toISOString(),model_version:'rule-proxy-v2',result:null});paperSave();paperRender();$('paperStatus').textContent='Paper forecast recorded before expiry. No order placed.';
+}
+async function paperVerify(){
+ let count=0,errors=0;
+ for(const row of paper.filter(x=>!x.result&&Date.parse(x.close)<Date.now()-120000).slice(0,20)){
+  try{const raw=await getJSON('https://external-api.kalshi.com/trade-api/v2/markets/'+encodeURIComponent(row.market));const m=raw.market;
+   if(m&&(m.result==='yes'||m.result==='no')&&(m.status==='finalized'||m.status==='settled'||m.status==='closed')){row.result=m.result;count++;}
+  }catch(e){errors++;}
+ }
+ paperSave();paperRender();$('paperStatus').textContent='Official result check: '+count+' graded, '+errors+' requests failed. Unresolved forecasts remain pending; never infer settlement from Coinbase.';
+}
+function paperExport(){const headers=['market','at','side','strike','spot','close','model_version','result'];const csv=[headers.join(','),...paper.map(r=>headers.map(k=>JSON.stringify(r[k]??'')).join(','))].join('\r\n');const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='oracle-kalshi-paper.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);}
+$('paperRecord').onclick=paperRecord;
+function autoRecordPaper(){const lean=paperLean();if(!lean||paper.some(x=>x.market===kalshiMarket?.ticker))return;paperRecord();}
+setInterval(autoRecordPaper,60000);$('paperVerify').onclick=paperVerify;$('paperExport').onclick=paperExport;
+paperRender();setInterval(paperRender,1000);setInterval(paperVerify,60000);setTimeout(autoRecordPaper,12000);
+
 </script><script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
