@@ -17,7 +17,11 @@ module.exports=async(req,res)=>{
   const [spotResponse,candleResponse]=await Promise.all([jsonFetch('https://api.coinbase.com/v2/prices/BTC-USD/spot'),jsonFetch('https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60')]);
   const spot=Number(spotResponse?.data?.amount),strike=Number(market.floor_strike),close=Date.parse(market.close_time||market.expiration_time),est=forecast(parseCandles(candleResponse),spot,strike,(close-Date.now())/1000);
   if(!est)return res.status(200).json({ok:true,recorded:false,graded,unresolved,reason:'Insufficient 1-minute candles or volatility; no fabricated prediction'});
-  const yes=est.yes;const row={market:market.ticker,at:new Date().toISOString(),close:new Date(close).toISOString(),side:yes>=.5?'yes':'no',baseYes:yes,predYes:yes,strike,spot,projectedFinish:est.projectedFinish,sigma:est.sigma,model_version:'coinbase-1m-baseline-v3',result:null};
+  const yes=est.yes;
+  const candles=parseCandles(candleResponse);
+  const tail=candles.slice(-11);
+  const momentumZ=tail.length>=10?Math.max(-3,Math.min(3,Math.log(tail[tail.length-1].c/tail[0].c)/Math.max(est.sigma,1e-8))):0;
+  const row={market:market.ticker,at:new Date().toISOString(),close:new Date(close).toISOString(),side:yes>=.5?'yes':'no',baseYes:yes,predYes:yes,strike,spot,projectedFinish:est.projectedFinish,sigma:est.sigma,momentumZ,minutesRemaining:(close-Date.now())/60000,model_version:'coinbase-1m-baseline-v3',result:null};
   const created=await store.putNew(row);return res.status(200).json({ok:true,recorded:created,graded,unresolved,market:market.ticker,model:row.model_version,settlementPrediction:'Unvalidated Coinbase proxy'});
  }catch(e){return res.status(502).json({error:'COLLECTOR_FAILED',detail:String(e.message||e)});}
 };
