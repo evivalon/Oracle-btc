@@ -39,6 +39,7 @@ h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 14px;
 <div class="reason"><span class="muted">Recorded forecasts / Pending settlements</span><b id="cvCounts">—</b></div>
 <div class="reason"><span class="muted">Public Kalshi historical result availability</span><b id="cvHistory">Not checked</b></div>
 <div class="controls" style="margin-top:10px"><button id="cvRefresh">Refresh validation</button><button id="cvHistoryBtn">Check public settlement archive</button></div>
+<div class="reason"><span class="muted">Threshold-aware candidate · held-out test</span><b id="cvThresholdModel">Collecting data</b></div>
 <p class="foot" id="cvNote">Only forecasts timestamped before a contract closes count as verified prediction tests. Historical results alone never count as predictions. No Kalshi login required. Cloud collection requires configured storage and an enabled schedule; your local paper log remains separate.</p>
 <div class="tablewrap"><table><thead><tr><th>Contract</th><th>Forecast UTC</th><th>Predicted UP</th><th>Actual result</th></tr></thead><tbody id="cvRows"><tr><td colspan="4">No cloud forecasts yet.</td></tr></tbody></table></div>
 </section>
@@ -292,6 +293,7 @@ async function cloudValidation(){
  $('cvCounts').textContent=raw.total+' / '+raw.pending;
  const v=raw.validation||{};$('cvLearning').textContent=(v.status||'collecting')+' · '+(v.train||0)+' training / '+(v.test||0)+' held-out';$('cvModel').textContent=v.baseBrier===null?'Need 100 training + 30 later outcomes':v.baseBrier.toFixed(4)+' / '+v.learnedBrier.toFixed(4)+' · '+v.status;
  $('cvRows').innerHTML=(raw.latest||[]).map(r=>'<tr><td>'+escapeHTML(r.market)+'</td><td>'+escapeHTML(r.at)+'</td><td>'+((r.baseYes*100)||0).toFixed(1)+'%</td><td>'+escapeHTML((r.result||'pending').toUpperCase())+'</td></tr>').join('')||'<tr><td colspan="4">Waiting for server-recorded forecasts.</td></tr>';
+ $('cvThresholdModel').textContent=raw.thresholdModel?.baselineBrier!=null?('Baseline Brier '+raw.thresholdModel.baselineBrier.toFixed(4)+' · Candidate '+raw.thresholdModel.candidateBrier.toFixed(4)+' · '+raw.thresholdModel.status+' · NOT LIVE'):('Collecting · '+(raw.thresholdModel?.train||0)+' training / '+(raw.thresholdModel?.test||0)+' testing · candidate NOT LIVE');
  $('cvNote').textContent='These are only server-captured forecasts made before settlement. Model calibration is diagnostic and NOT promoted to live signals. Coinbase is not the official BRTI price feed.';
  }catch(e){$('cvStatus').textContent='FEED ERROR';$('cvNote').textContent='Cloud validation error: '+e.message;}}
 async function historyCheck(){try{const d=await getJSON('/api/validation?history=1');$('cvHistory').textContent=d.sources.map(s=>s.type+': '+s.count+(s.error?' ('+s.error+')':'')).join(' · ')+' · sample pages only';}catch(e){$('cvHistory').textContent='History request failed: '+e.message;}}
