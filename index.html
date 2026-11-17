@@ -27,9 +27,9 @@ h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 14px;
  <div class="controls"><label class="muted">Signal horizon</label><select id="interval"><option value="15m" selected>15 minutes</option><option value="5m">5 minutes</option><option value="1h">1 hour</option></select><button id="refresh">Refresh candles</button><span class="muted" id="candleStatus">Loading candles…</span></div>
 </section>
 <section class="panel tv-panel" id="tvPanel"><div class="signalrow"><h2 style="margin:0">DAGGER · Candle intelligence</h2><span class="pill">Trading-style · Coinbase BTC/USD</span></div>
-<div class="tv-toolbar"><label class="muted" for="tvTf">Candles</label><select id="tvTf"><option value="60">1 minute</option><option value="300">5 minutes</option><option value="900">15 minutes</option></select><label><input id="tvEMA" type="checkbox" checked> EMA 9 / 21</label><label><input id="tvThreshold" type="checkbox" checked> Kalshi threshold</label><label><input id="tvForecast" type="checkbox" checked> 15m forecast</label><button id="tvReload">Refresh chart</button><span id="tvStatus" class="muted">Loading chart…</span></div>
+<div class="tv-toolbar"><label class="muted" for="tvTf">Candles</label><select id="tvTf"><option value="60">1 minute</option><option value="300">5 minutes</option><option value="900">15 minutes</option></select><label><input id="tvEMA" type="checkbox" checked> EMA 9 / 21</label><label><input id="tvThreshold" type="checkbox" checked> Kalshi threshold</label><label><input id="tvForecast" type="checkbox" checked> Kalshi close forecast</label><button id="tvReload">Refresh chart</button><span id="tvStatus" class="muted">Loading chart…</span></div>
 <div class="tv-layout" id="tvPriceChart" role="img" aria-label="Interactive BTC candlestick price chart"></div><div class="tv-volume" id="tvVolumeChart" role="img" aria-label="BTC trading volume chart"></div>
-<div class="tv-stats"><div><small>Price action</small><strong id="tvTrend">—</strong></div><div><small>RSI (14)</small><strong id="tvRsi">—</strong></div><div><small>MACD (12/26/9)</small><strong id="tvMacd">—</strong></div><div><small>15-minute forecast</small><strong id="tvPrediction">—</strong></div></div>
+<div class="tv-stats"><div><small>Price action</small><strong id="tvTrend">—</strong></div><div><small>RSI (14)</small><strong id="tvRsi">—</strong></div><div><small>MACD (12/26/9)</small><strong id="tvMacd">—</strong></div><div><small>Kalshi settlement forecast</small><strong id="tvPrediction">—</strong></div></div>
 <p class="tv-caption" id="tvNote">Real Coinbase candles; indicators are calculated locally. The forecast is a Coinbase-based experimental projection, not official Kalshi BRTI or a validated probability. Price threshold is the Kalshi contract strike, not Coinbase settlement.</p></section>
 <section class="panel" style="margin-bottom:16px" id="cloudValidation"><h2>DAGGER · Live AI validation · Verified Kalshi results</h2>
 <p class="foot">Real predictions recorded before contract settlement, checked against official public Kalshi outcomes. Coinbase is used for forecasts, not as the settlement index.</p>
@@ -371,25 +371,44 @@ volumeSeries=volumeChart.addHistogramSeries({priceFormat:{type:'volume'},priceSc
 const observer=new ResizeObserver(()=>{priceChart.applyOptions({width:a.clientWidth,height:a.clientHeight});volumeChart.applyOptions({width:b.clientWidth,height:b.clientHeight})});observer.observe(a);observer.observe(b);
 priceChart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(r)try{volumeChart.timeScale().setVisibleLogicalRange(r)}catch{}});
 return true}
-function updateOverlay(){if(!priceChart||!chartCandles.length)return;const a=chartCandles,closes=a.map(x=>x.c),last=a[a.length-1],period=Number(el('tvTf').value),ema9=emaValues(a,9),ema21=emaValues(a,21);
-ema9Series.setData(el('tvEMA').checked?ema9:[]);ema21Series.setData(el('tvEMA').checked?ema21:[]);
-if(thresholdLine){candleSeries.removePriceLine(thresholdLine);thresholdLine=null}
-const strike=Number(window.kalshiMarket?.floor_strike); // lexical top-level `let` is not a window property: fallback below
-let activeStrike=NaN;try{activeStrike=Number(kalshiMarket?.floor_strike)}catch{}
-if(el('tvThreshold').checked&&Number.isFinite(activeStrike)&&activeStrike>0){thresholdLine=candleSeries.createPriceLine({price:activeStrike,color:'#f7c35b',lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:'Kalshi threshold'})}
-let rsi=50;if(closes.length>14){let up=0,down=0;for(let i=closes.length-14;i<closes.length;i++){let d=closes[i]-closes[i-1];up+=Math.max(0,d);down+=Math.max(0,-d)}rsi=down===0?100:100-100/(1+up/down)}
-const e12=emaValues(a,12),e26=emaValues(a,26),macd=e12.at(-1).value-e26.at(-1).value;
-const rising=ema9.at(-1).value>ema21.at(-1).value;el('tvTrend').textContent=rising?'Bullish EMA trend':'Bearish EMA trend';el('tvTrend').style.color=rising?'#36d8ae':'#f0789f';el('tvRsi').textContent=rsi.toFixed(1);el('tvMacd').textContent=(macd>=0?'+':'')+nfmt(macd);
-// Use the existing displayed projected-finish value; never fabricate a forecast from historical candles.
-const shown=el('projectedFinish')?.textContent||'';const projected=Number(shown.replace(/[^\d.-]/g,''));const valid=/\d/.test(shown)&&Number.isFinite(projected)&&projected>0;
-let future=[];if(el('tvForecast').checked&&valid){let end=fmtTime(last.t)+900;let step=period;let t=fmtTime(last.t);future=[{time:t,value:last.c},{time:end,value:projected}];}
-forecastSeries.setData(future);el('tvPrediction').textContent=valid?(projected>=last.c?'UP ':'DOWN ')+'· $'+nfmt(projected):'Unavailable';
-el('tvNote').textContent='Coinbase historical candles and locally calculated indicators. '+(valid?'Dashed line: existing experimental projected finish (not a validated forecast). ':'Forecast unavailable until model has a projected finish. ')+(Number.isFinite(activeStrike)&&activeStrike>0?'Gold line: Kalshi strike (BRTI-based); Coinbase is a proxy.':'Kalshi strike unavailable.')+' Crosshair, pinch zoom and scroll supported.';
+function updateOverlay(){
+ if(!priceChart||!chartCandles.length)return;
+ const a=chartCandles,closes=a.map(x=>x.c),last=a[a.length-1],period=Number(el('tvTf').value),ema9=emaValues(a,9),ema21=emaValues(a,21);
+ ema9Series.setData(el('tvEMA').checked?ema9:[]);ema21Series.setData(el('tvEMA').checked?ema21:[]);
+ if(thresholdLine){candleSeries.removePriceLine(thresholdLine);thresholdLine=null;}
+ let m=null;try{m=kalshiMarket}catch{}
+ const strike=Number(m?.floor_strike),close=Date.parse(m?.close_time||m?.expiration_time||''),now=Date.now(),seconds=(close-now)/1000;
+ const contractValid=m&&['active','open'].includes(m.status)&&Number.isFinite(strike)&&strike>0&&Number.isFinite(seconds)&&seconds>0&&seconds<=900&&now-kalshiFetchedAt<90000;
+ if(el('tvThreshold').checked&&contractValid)thresholdLine=candleSeries.createPriceLine({price:strike,color:'#f7c35b',lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:'Kalshi target'});
+ let rsi=50;if(closes.length>14){let up=0,down=0;for(let i=closes.length-14;i<closes.length;i++){let d=closes[i]-closes[i-1];up+=Math.max(0,d);down+=Math.max(0,-d)}rsi=down===0?100:100-100/(1+up/down)}
+ const e12=emaValues(a,12),e26=emaValues(a,26),macd=e12.at(-1).value-e26.at(-1).value,rising=ema9.at(-1).value>ema21.at(-1).value;
+ el('tvTrend').textContent=rising?'Bullish EMA trend':'Bearish EMA trend';el('tvTrend').style.color=rising?'#36d8ae':'#f0789f';el('tvRsi').textContent=rsi.toFixed(1);el('tvMacd').textContent=(macd>=0?'+':'')+nfmt(macd);
+ // Use exactly the same strike-conditioned settlement model as the existing Kalshi panel.
+ // Do not infer settlement direction from the forecast's movement relative to spot.
+ let estimate=null,probability=NaN;
+ const spotFresh=Number.isFinite(ticker)&&ticker>0&&now-lastPriceAt<90000;
+ if(contractValid&&spotFresh){try{estimate=estimateSettlementProbability(strike,seconds);if(estimate)probability=adaptiveProbability(estimate.yes)}catch{}}
+ const good=estimate&&Number.isFinite(estimate.projectedFinish)&&Number.isFinite(probability);
+ const outcome=good?(Math.max(probability,1-probability)<0.65?'UNDETERMINED':probability>=0.5?'UP · YES':'DOWN · NO'):'WAIT · DATA';
+ let future=[];
+ if(good&&el('tvForecast').checked){
+  const start=fmtTime(last.t),end=Math.max(start+period,Math.ceil(close/1000/period)*period);
+  future=[{time:start,value:last.c},{time:end,value:estimate.projectedFinish}];
+ }
+ forecastSeries.setData(future);
+ el('tvPrediction').textContent=good?outcome+' · '+(Math.max(probability,1-probability)*100).toFixed(1)+'%':'WAIT · DATA';
+ el('tvPrediction').style.color=!good?'#bba8ce':outcome.startsWith('UP')?'#36d8ae':outcome.startsWith('DOWN')?'#f0789f':'#f7c35b';
+ const gap=good?estimate.projectedFinish-strike:NaN;
+ el('tvNote').textContent=(m?.ticker?'Contract '+m.ticker+' · ':'')+
+ (contractValid?'Kalshi target $'+nfmt(strike)+' · '+Math.ceil(seconds)+'s to close. ':'No fresh active Kalshi 15-minute target. ')+
+ (good?'Coinbase proxy forecast $'+nfmt(estimate.projectedFinish)+' ('+(gap>=0?'+':'−')+'$'+nfmt(Math.abs(gap))+' vs target). YES '+(probability*100).toFixed(1)+'% / NO '+((1-probability)*100).toFixed(1)+'%. ':'Forecast unavailable until fresh spot, candles and Kalshi contract data are present. ')+
+ 'Dashed purple projection ends at the contract close, not 15 minutes from now. Coinbase is NOT the official BRTI settlement index; probabilities are experimental and unvalidated.';
 }
+
 async function load(){if(refreshing)return;refreshing=true;el('tvStatus').textContent='Loading Coinbase candles…';try{if(!setup())throw Error('Chart library could not load. Check your network or content blocker.');const period=Number(el('tvTf').value);const r=await fetch('https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity='+period,{cache:'no-store'});if(!r.ok)throw Error('Coinbase HTTP '+r.status);const raw=await r.json();if(!Array.isArray(raw))throw Error('Unexpected Coinbase response');const list=[...new Map(raw.map(x=>({t:Number(x[0])*1000,l:+x[1],h:+x[2],o:+x[3],c:+x[4],v:+x[5]})).filter(x=>Object.values(x).every(Number.isFinite)).map(x=>[x.t,x])).values()].sort((a,b)=>a.t-b.t);if(list.length<30)throw Error('Not enough candles');chartCandles=list;
-candleSeries.setData(list.map(x=>({time:fmtTime(x.t),open:x.o,high:x.h,low:x.l,close:x.c})));volumeSeries.setData(list.map(x=>({time:fmtTime(x.t),value:x.v,color:x.c>=x.o?'#226b5e':'#7d344f'})));updateOverlay();if(firstDraw){priceChart.timeScale().fitContent();volumeChart.timeScale().fitContent();firstDraw=false}el('tvStatus').textContent=list.length+' candles · '+new Date().toLocaleTimeString();}catch(e){el('tvStatus').textContent='Chart: '+e.message}finally{refreshing=false}}
+candleSeries.setData(list.map(x=>({time:fmtTime(x.t),open:x.o,high:x.h,low:x.l,close:x.c})));volumeSeries.setData(list.map(x=>({time:fmtTime(x.t),value:x.v,color:x.c>=x.o?'#226b5e':'#7d344f'})));updateOverlay();if(firstDraw){priceChart.timeScale().fitContent();volumeChart.timeScale().fitContent();firstDraw=false}el('tvStatus').textContent='LIVE · '+list.length+' candles · '+new Date().toLocaleTimeString()+' · refresh 10s';}catch(e){el('tvStatus').textContent='Chart: '+e.message}finally{refreshing=false}}
 for(const id of ['tvEMA','tvThreshold','tvForecast'])el(id).addEventListener('change',updateOverlay);
 el('tvTf').addEventListener('change',()=>{firstDraw=true;load()});el('tvReload').addEventListener('click',load);
-window.addEventListener('load',()=>{load();setInterval(()=>{load()},60000);setInterval(()=>{if(chartCandles.length)updateOverlay()},12000)});
+window.addEventListener('load',()=>{load();setInterval(()=>{if(!document.hidden)load()},10000);setInterval(()=>{if(chartCandles.length)updateOverlay()},2000)});
 })();
 </script></body></html>
