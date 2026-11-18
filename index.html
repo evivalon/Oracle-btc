@@ -39,6 +39,10 @@ h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 14px;
 <div class="reason"><span class="muted">Recorded forecasts / Pending settlements</span><b id="cvCounts">—</b></div>
 <div class="reason"><span class="muted">Public Kalshi historical result availability</span><b id="cvHistory">Not checked</b></div>
 <div class="controls" style="margin-top:10px"><button id="cvRefresh">Refresh validation</button><button id="cvHistoryBtn">Check public settlement archive</button></div>
+<div class="reason"><span class="muted">Paper candidates / settled</span><b id="cvPaperCounts">—</b></div>
+<div class="reason"><span class="muted">Snapshot-only hypothetical P&amp;L (one contract per candidate)</span><b id="cvPaperPnl">—</b></div>
+<div class="reason"><span class="muted">Paper win rate / maximum drawdown</span><b id="cvPaperRisk">—</b></div>
+<p class="foot">Experimental paper screen: 65% modeled probability, at least $0.08 estimated edge after taker fee, maximum $0.08 spread, and at least one contract at the best displayed quote. This is NOT actual trading profit or a fill simulation; no execution, slippage, or latency is verified. Coinbase/BRTI basis and model calibration remain unvalidated.</p>
 <div class="reason"><span class="muted">Threshold-aware candidate · held-out test</span><b id="cvThresholdModel">Collecting data</b></div>
 <p class="foot" id="cvNote">Only forecasts timestamped before a contract closes count as verified prediction tests. Historical results alone never count as predictions. No Kalshi login required. Cloud collection requires configured storage and an enabled schedule; your local paper log remains separate.</p>
 <div class="tablewrap"><table><thead><tr><th>Contract</th><th>Forecast UTC</th><th>Predicted UP</th><th>Actual result</th></tr></thead><tbody id="cvRows"><tr><td colspan="4">No cloud forecasts yet.</td></tr></tbody></table></div>
@@ -291,6 +295,7 @@ async function cloudValidation(){
  $('cvAccuracy').textContent=raw.accuracy===null?'Not established':(raw.accuracy*100).toFixed(1)+'%';
  $('cvBrier').textContent=raw.baselineBrier===null?'—':raw.baselineBrier.toFixed(4);
  $('cvCounts').textContent=raw.total+' / '+raw.pending;
+ const paper=raw.paper||{};$('cvPaperCounts').textContent=(paper.candidates??0)+' candidates / '+(paper.settled??0)+' settled · '+(paper.quoted??0)+' quotes';$('cvPaperPnl').textContent=paper.settled?'$'+Number(paper.hypotheticalNetPnl||0).toFixed(2)+' · NOT REALIZED':'Awaiting settled paper candidates';$('cvPaperRisk').textContent=paper.settled?((paper.winRate*100).toFixed(1)+'% / $'+Number(paper.maxDrawdown).toFixed(2)):'Not established';
  const v=raw.validation||{};$('cvLearning').textContent=(v.status||'collecting')+' · '+(v.train||0)+' training / '+(v.test||0)+' held-out';$('cvModel').textContent=v.baseBrier===null?'Need 100 training + 30 later outcomes':v.baseBrier.toFixed(4)+' / '+v.learnedBrier.toFixed(4)+' · '+v.status;
  $('cvRows').innerHTML=(raw.latest||[]).map(r=>'<tr><td>'+escapeHTML(r.market)+'</td><td>'+escapeHTML(r.at)+'</td><td>'+((r.baseYes*100)||0).toFixed(1)+'%</td><td>'+escapeHTML((r.result||'pending').toUpperCase())+'</td></tr>').join('')||'<tr><td colspan="4">Waiting for server-recorded forecasts.</td></tr>';
  $('cvThresholdModel').textContent=raw.thresholdModel?.baselineBrier!=null?('Baseline Brier '+raw.thresholdModel.baselineBrier.toFixed(4)+' · Candidate '+raw.thresholdModel.candidateBrier.toFixed(4)+' · '+raw.thresholdModel.status+' · NOT LIVE'):('Collecting · '+(raw.thresholdModel?.train||0)+' training / '+(raw.thresholdModel?.test||0)+' testing · candidate NOT LIVE');
