@@ -1,5 +1,5 @@
 'use strict';
-const {BASE,jsonFetch,parseCandles,forecast,quoteFromBook,paperScreen}=require('../lib/core');
+const {BASE,jsonFetch,parseCandles,forecast,quoteFromBook,paperScreen,strategyChoices}=require('../lib/core');
 const store=require('../lib/store');
 module.exports=async(req,res)=>{
  res.setHeader('Cache-Control','no-store');if(req.method!=='GET')return res.status(405).json({error:'GET only'});
@@ -24,7 +24,8 @@ module.exports=async(req,res)=>{
   // Snapshot a real public order book before settlement. A quote is not a fill.
   let paper={decision:'SKIP',reason:'Order book unavailable',assumedFill:false};let quote=null;
   try{const book=await jsonFetch(`${BASE}/markets/${encodeURIComponent(market.ticker)}/orderbook`,5000);quote=quoteFromBook(book);paper=paperScreen(yes,quote,(close-Date.now())/60000);}catch(e){paper.reason='Order book fetch failed';}
-  const row={quoteAt:new Date().toISOString(),quote,paper,market:market.ticker,at:new Date().toISOString(),close:new Date(close).toISOString(),side:yes>=.5?'yes':'no',baseYes:yes,predYes:yes,strike,spot,projectedFinish:est.projectedFinish,sigma:est.sigma,momentumZ,minutesRemaining:(close-Date.now())/60000,model_version:'coinbase-1m-baseline-v3',result:null};
+  const strategies=strategyChoices(yes,quote,(close-Date.now())/60000);
+  const row={strategies,quoteAt:new Date().toISOString(),quote,paper,market:market.ticker,at:new Date().toISOString(),close:new Date(close).toISOString(),side:yes>=.5?'yes':'no',baseYes:yes,predYes:yes,strike,spot,projectedFinish:est.projectedFinish,sigma:est.sigma,momentumZ,minutesRemaining:(close-Date.now())/60000,model_version:'coinbase-1m-baseline-v3',result:null};
   const created=await store.putNew(row);return res.status(200).json({ok:true,recorded:created,graded,unresolved,market:market.ticker,model:row.model_version,settlementPrediction:'Unvalidated Coinbase proxy'});
  }catch(e){return res.status(502).json({error:'COLLECTOR_FAILED',detail:String(e.message||e)});}
 };
