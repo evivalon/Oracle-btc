@@ -67,7 +67,7 @@ select,.tv-toolbar select,.tv-toolbar button{background:#201437;color:#f0e5ff;bo
 <section class="panel" style="margin-bottom:16px" id="marketPanel" aria-label="Kalshi 15 minute Bitcoin market">
 <div class="decision-heading"><div><div class="eyebrow">DAGGER // DECISION TERMINAL</div><h2>Kalshi 15-minute decision cockpit</h2><p class="muted">Contract, time, modeled direction, executable prices and estimated value — before the chart.</p></div><span class="pill">RESEARCH · PAPER ONLY</span></div>
 <div class="stats decision-metrics"><div class="stat"><label>Active contract</label><strong id="kalshiTicker" style="font-size:13px">Loading…</strong></div><div class="stat"><label>Kalshi target (BRTI)</label><strong id="kalshiStrike">—</strong></div><div class="stat"><label>Time remaining (min / sec)</label><strong id="kalshiCountdown">—</strong></div><div class="stat"><label>YES / NO indication</label><strong id="kalshiCall">UNAVAILABLE</strong></div></div>
-<div class="decision-cards"><div class="stat" style="margin:0;border-color:#8157b1;background:#1c102d"><label>PROJECTED 15-MINUTE SETTLEMENT SIDE · COINBASE PROXY</label><strong id="positionSide" style="display:block;font-size:34px;color:#d3a0ff">WAIT · DATA</strong><p id="positionExplain" class="foot">Waiting for valid market data. UP corresponds to Kalshi YES; DOWN corresponds to Kalshi NO. This is not an instruction to place a trade.</p><div class="reason"><span class="muted">Projected finish (Coinbase-based proxy)</span><b id="projectedFinish">—</b></div><div class="reason"><span class="muted">Projected finish vs Kalshi target</span><b id="projectedGap">—</b></div><div class="reason"><span class="muted">Projected side / estimated probability (65% minimum)</span><b id="positionProbability">—</b></div><div class="reason"><span class="muted">Paper entry decision (after price and fees)</span><b id="positionEntry">WAIT · NO BID</b></div></div><div class="stat" style="margin:0;border-color:#8157b1;background:#1c102d"><label>15-MINUTE KALSHI PAPER VALUE SCREEN</label><strong id="bidAction" style="font-size:27px;color:#d3a0ff">WAIT · NO BID</strong><p id="bidReason" class="foot" style="margin-top:8px">Waiting for fresh Kalshi contract and Coinbase price data.</p><p class="foot">Paper opportunity screen only. Estimated probabilities are uncalibrated and do not predict guaranteed profit.</p><div class="reason"><span class="muted">Flip chance by settlement (experimental)</span><b id="flipChance">—</b></div><div class="reason"><span class="muted">Current side / projected side</span><b id="flipSides">—</b></div><p id="flipNote" class="foot">Flip = the side indicated by Coinbase spot versus the Kalshi threshold changes by contract settlement. This is not the chance of a temporary price crossing.</p><div class="reason"><span class="muted">Estimated YES / NO chance (uncalibrated)</span><b id="edgeProb">—</b></div><div class="reason"><span class="muted">Estimated YES / NO buy price (ask)</span><b id="edgeAsk">—</b></div><div class="reason"><span class="muted">Estimated YES / NO net edge per contract</span><b id="edgeEV">—</b></div><p id="edgeNote" class="foot">Waiting for sufficient data to estimate paper-trade value.</p></div></div>
+<div class="decision-cards"><div class="stat" style="margin:0;border-color:#8157b1;background:#1c102d"><label>PROJECTED 15-MINUTE SETTLEMENT SIDE · COINBASE PROXY</label><strong id="positionSide" style="display:block;font-size:34px;color:#d3a0ff">WAIT · DATA</strong><p id="positionExplain" class="foot">Waiting for valid market data. UP corresponds to Kalshi YES; DOWN corresponds to Kalshi NO. This is not an instruction to place a trade.</p><div class="reason"><span class="muted">Projected finish (Coinbase-based proxy)</span><b id="projectedFinish">—</b></div><div class="reason"><span class="muted">Projected finish vs Kalshi target</span><b id="projectedGap">—</b></div><div class="reason"><span class="muted">Projected side / estimated probability (65% minimum)</span><b id="positionProbability">—</b></div><div class="reason"><span class="muted">Paper entry decision (validation-gated)</span><b id="positionEntry">WAIT · DATA</b></div></div><div class="stat" style="margin:0;border-color:#8157b1;background:#1c102d"><label>15-MINUTE KALSHI PAPER VALUE SCREEN</label><strong id="bidAction" style="font-size:27px;color:#d3a0ff">WAIT · DATA</strong><p id="bidReason" class="foot" style="margin-top:8px">Waiting for fresh Kalshi contract and Coinbase price data.</p><p class="foot">Paper opportunity screen only. Estimated probabilities are uncalibrated and do not predict guaranteed profit.</p><div class="reason"><span class="muted">Flip chance by settlement (experimental)</span><b id="flipChance">—</b></div><div class="reason"><span class="muted">Current side / projected side</span><b id="flipSides">—</b></div><p id="flipNote" class="foot">Flip = the side indicated by Coinbase spot versus the Kalshi threshold changes by contract settlement. This is not the chance of a temporary price crossing.</p><div class="reason"><span class="muted">Estimated YES / NO chance (uncalibrated)</span><b id="edgeProb">—</b></div><div class="reason"><span class="muted">Estimated YES / NO buy price (ask)</span><b id="edgeAsk">—</b></div><div class="reason"><span class="muted">Estimated YES / NO net edge per contract</span><b id="edgeEV">—</b></div><p id="edgeNote" class="foot">Waiting for sufficient data to estimate paper-trade value.</p></div></div>
 <div class="reason"><span class="muted">Coinbase price vs Kalshi target (indicative only)</span><b id="kalshiDistance">—</b></div>
 <div class="reason"><span class="muted">Kalshi YES bid / NO bid</span><b id="kalshiBook">—</b></div>
 <p class="foot" id="kalshiStatus">Connecting to public Kalshi market data…</p>
@@ -113,7 +113,7 @@ select,.tv-toolbar select,.tv-toolbar button{background:#201437;color:#f0e5ff;bo
 <div class="reason"><span class="muted">Validation status</span><b id="paperValidation">Insufficient independently verified outcomes</b></div><div class="reason"><span class="muted">95% Wilson confidence interval · directional hit rate</span><b id="paperCI">Not established</b></div><div class="reason"><span class="muted">Paper forecasting mode</span><b id="autoPaperStatus">Automatic · eligible markets only</b></div>
 <div class="reason"><span class="muted">Paper signal (not a calibrated probability)</span><b id="paperSignal">WAIT</b></div>
 <div class="controls" style="margin-top:12px"><button id="paperRecord">Record paper forecast now</button><button id="paperVerify">Check official settlements</button><button id="paperExport">Export paper CSV</button></div>
-<p class="foot" id="paperStatus">Only actual Kalshi-settled outcomes count. Automatic recording occurs while the app is open and fresh data is available; it does not run in the background. This browser-based log persists locally on this device, but it is not a continuous cloud database. Never use the hit rate alone as a trading edge.</p>
+<p class="foot"><strong>RESEARCH-ONLY SIMULATION:</strong> Forecasts are logged locally before expiry even when the model is unvalidated. They are NOT orders, simulated fills, or validated profitable opportunities. Export your CSV to preserve them.</p><p class="foot" id="paperStatus">Only actual Kalshi-settled outcomes count. Automatic recording occurs while the app is open and fresh data is available; it does not run in the background. This browser-based log persists locally on this device, but it is not a continuous cloud database. Never use the hit rate alone as a trading edge.</p>
 <div class="tablewrap"><table><thead><tr><th>Market</th><th>Recorded UTC</th><th>Paper lean</th><th>Official result</th></tr></thead><tbody id="paperRows"><tr><td colspan="4">No forecasts yet.</td></tr></tbody></table></div>
 </section>
 <div class="grid">
@@ -251,22 +251,22 @@ function showBidAction(){
  const el=$('bidAction'),reason=$('bidReason');if(!el||!reason)return;
  const probEl=$('edgeProb'),askEl=$('edgeAsk'),evEl=$('edgeEV'),noteEl=$('edgeNote');
  const set=(node,value)=>{if(node)node.textContent=value;};
- let action='WAIT · NO BID',why='Waiting for fresh Kalshi and Coinbase data.',color='var(--amber)';
+ let action='WAIT · DATA',why='Waiting for fresh Kalshi and Coinbase data.',color='var(--amber)';
  set(probEl,'—');set(askEl,'—');set(evEl,'—');set(noteEl,'Experimental estimate only; not trained on Kalshi outcomes.');
  set($('flipChance'),'—');set($('flipSides'),'—');
  const m=kalshiMarket,now=Date.now();
  set($('projectedFinish'),'—');set($('projectedGap'),'—');
- set($('positionSide'),'WAIT · DATA');set($('positionProbability'),'—');set($('positionEntry'),'WAIT · NO BID');set($('positionExplain'),'Waiting for valid Kalshi and Coinbase data. No real-money trade recommendation.');
+ set($('positionSide'),'WAIT · DATA');set($('positionProbability'),'—');set($('positionEntry'),'WAIT · DATA');set($('positionExplain'),'Waiting for valid Kalshi and Coinbase data. No real-money trade recommendation.');
  if(m){
   const close=Date.parse(m.close_time||m.expiration_time||''),strike=num(m.floor_strike),seconds=(close-now)/1000;
   const fresh=now-kalshiFetchedAt<90000&&now-lastPriceAt<90000;
   const y=num(m.yes_bid_dollars),n=num(m.no_bid_dollars);
   const yesBid=Number.isFinite(y)?y:num(m.yes_bid)/100,noBid=Number.isFinite(n)?n:num(m.no_bid)/100;
   const yesAsk=1-noBid,noAsk=1-yesBid;
-  if(!fresh)why='Stale market data: no paper trade.';
+  if(!fresh){action='WAIT · STALE DATA';why='Market or Coinbase quote older than 90 seconds.';}
   else if(!['active','open'].includes(m.status)||!Number.isFinite(seconds)||seconds<=0||seconds>900)why='No eligible active 15-minute market.';
   else if(!Number.isFinite(strike)||strike<=0)why='Kalshi target unavailable.';
-  else if(!Number.isFinite(yesBid)||!Number.isFinite(noBid)||yesAsk<=0||noAsk<=0||yesAsk>1||noAsk>1)why='Valid two-sided bids needed to calculate executable ask prices.';
+  else if(!Number.isFinite(yesBid)||!Number.isFinite(noBid)||yesAsk<=0||noAsk<=0||yesAsk>1||noAsk>1){action='WAIT · QUOTE MISSING';why='Missing or invalid YES/NO bid quotes; cannot derive purchase asks.';}
   else if(yesAsk+noAsk<1-1e-6)why='Inconsistent order book quotes; skip.';
   else {
    const estimate=estimateSettlementProbability(strike,seconds);
@@ -295,10 +295,10 @@ function showBidAction(){
     set(noteEl,'Research-only estimated value; excludes slippage and settlement-index mismatch. '+(learningModel().active?'Adaptive calibration passed a limited held-out test; profitability is unproven.':'No validated calibration yet.'));
     // 10 percentage-point edge hurdle is a research filter, not evidence of profitability.
     const hurdle=0.10;
-    if(undetermined)why='UNDETERMINED: neither UP nor DOWN reaches the 65% experimental threshold. No paper bid.';
-    else if(seconds<60)why='Less than 60 seconds left: price/index timing risk too high.';
-    else if(!learningModel().active)why='Learning model not validated yet: collecting official Kalshi outcomes. Paper bid withheld.';
-    else if(Math.max(yesEV,noEV)<hurdle)why='No estimated edge above the 10¢ research hurdle after estimated fees.';
+    if(undetermined){action='WAIT · LOW CONFIDENCE';why='Neither estimated side reaches the experimental 65% cutoff.';}
+    else if(seconds<60){action='WAIT · CLOSING';why='Less than 60 seconds remain; index timing risk too high.';}
+    else if(!learningModel().active){action='WAIT · MODEL UNVALIDATED';why='Unvalidated model: no approved paper entry. Research-only forecasts continue recording separately in the Paper Trading section.';}
+    else if(Math.max(yesEV,noEV)<hurdle){action='WAIT · EDGE TOO LOW';why='Neither side clears the 10¢ research edge hurdle after estimated fees.';}
     else if(yesEV>=noEV){action='PAPER OPPORTUNITY · UP';color='var(--green)';why='Experimental YES value screen passed. NOT a validated real-money trade recommendation.';}
     else {action='PAPER OPPORTUNITY · DOWN';color='var(--red)';why='Experimental NO value screen passed. NOT a validated real-money trade recommendation.';}
    }
@@ -388,7 +388,7 @@ function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':
 function paperRecord(){
  const lean=paperLean();if(!lean){$('paperStatus').textContent='No forecast: need a fresh contract, Coinbase spot price and valid candle volatility.';return;}
  const market=kalshiMarket.ticker;if(paper.some(x=>x.market===market)){$('paperStatus').textContent='One forecast per market allowed to prevent duplicate training examples.';return;}
- paper.push({market,at:new Date().toISOString(),side:lean.side,strike:lean.strike,spot:lean.price,close:new Date(lean.close).toISOString(),model_version:learningModel().version,baseYes:lean.baseYes,predYes:lean.predYes,result:null});paperSave();paperRender();$('paperStatus').textContent='Forecast recorded before expiry for outcome-based learning. No order placed.';
+ paper.push({market,at:new Date().toISOString(),side:lean.side,strike:lean.strike,spot:lean.price,close:new Date(lean.close).toISOString(),model_version:learningModel().version,baseYes:lean.baseYes,predYes:lean.predYes,mode:'research_only',result:null});paperSave();paperRender();$('paperStatus').textContent='Forecast recorded before expiry for outcome-based learning. No order placed.';
 }
 async function paperVerify(){
  let count=0,errors=0;
@@ -399,7 +399,7 @@ async function paperVerify(){
  }
  paperSave();paperRender();$('paperStatus').textContent='Official result check: '+count+' graded, '+errors+' requests failed. Unresolved forecasts remain pending; never infer settlement from Coinbase.';
 }
-function paperExport(){const headers=['market','at','side','strike','spot','close','model_version','baseYes','predYes','result'];const csv=[headers.join(','),...paper.map(r=>headers.map(k=>JSON.stringify(r[k]??'')).join(','))].join('\r\n');const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='oracle-kalshi-paper.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);}
+function paperExport(){const headers=['market','at','side','strike','spot','close','model_version','baseYes','predYes','mode','result'];const csv=[headers.join(','),...paper.map(r=>headers.map(k=>JSON.stringify(r[k]??'')).join(','))].join('\r\n');const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='oracle-kalshi-paper.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);}
 $('paperRecord').onclick=paperRecord;
 function autoRecordPaper(){const lean=paperLean();if(!lean||paper.some(x=>x.market===kalshiMarket?.ticker))return;paperRecord();}
 setInterval(autoRecordPaper,60000);$('paperVerify').onclick=paperVerify;$('paperExport').onclick=paperExport;
