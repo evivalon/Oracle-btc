@@ -110,6 +110,7 @@ select,.tv-toolbar select,.tv-toolbar button{background:#201437;color:#f0e5ff;bo
 </section>
 
 
+<section class="panel" id="researchQuality" style="margin-bottom:16px"><h2>DAGGER · Research quality / execution stress</h2><div class="stats"><div class="stat"><label>Stored prediction gaps over 22 min</label><strong id="rqGaps">—</strong></div><div class="stat"><label>Missing quote snapshots</label><strong id="rqMissing">—</strong></div><div class="stat"><label>Last 50 Brier score</label><strong id="rqBrier">—</strong></div><div class="stat"><label>Calibration holdout</label><strong id="rqCal">Collecting</strong></div></div><div class="reason"><span class="muted">Conservative / Value P&amp;L with +2¢ adverse execution cost</span><b id="rqStress">—</b></div><p class="foot">Quote snapshots are not fills. Gaps do not prove scheduled collector failures. Calibration remains research-only; no model is auto-promoted.</p></section>
 <section class="panel" style="margin-bottom:16px" id="learningLab"><h2>Local adaptive probability model · experimental (separate from cloud validation)</h2><div class="stats"><div class="stat"><label>Learning status</label><strong id="learnStatus" style="font-size:14px">Collecting outcomes</strong></div><div class="stat"><label>Verified training examples</label><strong id="learnTrain">0</strong></div><div class="stat"><label>Held-out test examples</label><strong id="learnTest">0</strong></div><div class="stat"><label>Model version</label><strong id="learnVersion" style="font-size:14px">Baseline</strong></div></div><div class="reason"><span class="muted">Baseline / learned Brier score on later contracts (lower is better)</span><b id="learnBrier">—</b></div><p class="foot" id="learnNote">Learning requires at least 100 earlier settled forecasts and 30 later held-out outcomes. Training uses official YES/NO settlements only, never inferred Coinbase outcomes. Local device storage only; no continuous background learning.</p></section>
 <section class="panel" style="margin-bottom:16px" id="paperLab">
 <h2>Kalshi 15M · forward-only validation · v2</h2>
@@ -350,6 +351,12 @@ async function cloudValidation(){
  $('cvBrier').textContent=raw.baselineBrier===null?'—':raw.baselineBrier.toFixed(4);
  $('cvCounts').textContent=raw.total+' / '+raw.pending;
  const paper=raw.paper||{};$('cvPaperCounts').textContent=(paper.candidates??0)+' candidates / '+(paper.settled??0)+' settled · '+(paper.quoted??0)+' quotes';$('cvPaperPnl').textContent=paper.settled?'$'+Number(paper.hypotheticalNetPnl||0).toFixed(2)+' · NOT REALIZED':'Awaiting settled paper candidates';$('cvPaperRisk').textContent=paper.settled?((paper.winRate*100).toFixed(1)+'% / $'+Number(paper.maxDrawdown).toFixed(2)):'Not established';
+ const rq=raw.researchDiagnostics||{},ch=raw.calibrationHoldout||{};
+ $('rqGaps').textContent=rq.coverage?.gapsOver22Minutes??'—';
+ $('rqMissing').textContent=rq.quotes?.missing??'—';
+ $('rqBrier').textContent=Number.isFinite(rq.calibration?.last50Brier)?rq.calibration.last50Brier.toFixed(4):'—';
+ $('rqCal').textContent=ch.status==='collecting'?((ch.settled||0)+' / 130'):((ch.status||'—')+' · NOT LIVE');
+ const st=rq.executionStress?.scenarios?.['2c'];$('rqStress').textContent=st?('$'+st.conservative.hypotheticalPnl.toFixed(2)+' / $'+st.value.hypotheticalPnl.toFixed(2)):'—';
  const cmp=raw.strategyComparison;
  if(cmp){
   const show=(x)=>x&&x.settled?`${x.settled} settled / ${x.candidates} candidates · $${Number(x.hypotheticalNetPnl).toFixed(2)} hypothetical · ${(x.winRate*100).toFixed(1)}% wins · $${Number(x.maxDrawdown).toFixed(2)} max DD`:`${x?.candidates||0} candidates · awaiting official settlements`;
