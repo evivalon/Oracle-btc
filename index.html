@@ -91,6 +91,7 @@ select,.tv-toolbar select,.tv-toolbar button{background:#201437;color:#f0e5ff;bo
 <section class="panel" style="margin-bottom:16px" id="cloudValidation"><h2>DAGGER · Live AI validation · Verified Kalshi results</h2>
 <p class="foot">Real predictions recorded before contract settlement, checked against official public Kalshi outcomes. Coinbase is used for forecasts, not as the settlement index.</p>
 <div class="stats"><div class="stat"><label>Cloud status</label><strong style="font-size:13px" id="cvStatus">Checking…</strong></div><div class="stat"><label>Verified forecasts</label><strong id="cvSettled">—</strong></div><div class="stat"><label>Directional accuracy</label><strong id="cvAccuracy">—</strong></div><div class="stat"><label>Brier score (lower better)</label><strong id="cvBrier">—</strong></div></div>
+<p class="foot">Legacy cloud learning counter below is separate from the v6.1 forward shadow evaluation.</p>
 <div class="reason"><span class="muted">Learning progress</span><b id="cvLearning">Collecting verified outcomes</b></div>
 <div class="reason"><span class="muted">Later-contract calibration check (baseline / learned)</span><b id="cvModel">—</b></div>
 <div class="reason"><span class="muted">Recorded forecasts / Pending settlements</span><b id="cvCounts">—</b></div>
@@ -110,6 +111,20 @@ select,.tv-toolbar select,.tv-toolbar button{background:#201437;color:#f0e5ff;bo
 </section>
 
 
+<section class="panel" id="forwardResearch" style="margin-bottom:16px" aria-label="Forward shadow model validation">
+<h2>DAGGER · Forward shadow evaluation · v6.1</h2>
+<p class="foot">Independent, read-only forward evaluation. This panel is separate from the original cloud and local learning counters shown above.</p>
+<div class="stats"><div class="stat"><label>Verified forward settlements</label><strong id="fwCount">Loading…</strong></div><div class="stat"><label>Champion Brier ↓</label><strong id="fwChampion">—</strong></div><div class="stat"><label>Challenger Brier ↓</label><strong id="fwChallenger">—</strong></div><div class="stat"><label>Review status</label><strong id="fwReview" style="font-size:14px">Loading…</strong></div></div>
+<div class="meter" role="progressbar" aria-label="Forward validation sample progress" aria-valuemin="0" aria-valuemax="75" aria-valuenow="0" id="fwProgress"><span id="fwProgressFill" style="width:0%"></span></div>
+<div class="reason"><span class="muted">Champion / challenger accuracy</span><b id="fwAccuracy">—</b></div>
+<div class="reason"><span class="muted">Champion / challenger log loss</span><b id="fwLogLoss">—</b></div>
+<div class="reason"><span class="muted">Challenger Brier improvement</span><b id="fwDelta">—</b></div>
+<div class="reason"><span class="muted">New markets / pending or excluded</span><b id="fwMarkets">—</b></div>
+<div class="reason"><span class="muted">Frozen evaluation start (UTC)</span><b id="fwFreeze">—</b></div>
+<div class="controls" style="margin-top:12px"><button id="fwRefresh" type="button">Refresh forward results</button><a href="/api/research-v61" target="_blank" rel="noopener noreferrer" style="color:#d8baff">View full JSON</a></div>
+<p class="foot" id="fwStatus" role="status">Waiting for forward research endpoint.</p>
+<p class="foot">The champion remains active. The challenger is frozen and not promoted. Results do not include verified fills, fees or actual profitability. Repeatedly tuning against this forward window would compromise its independence.</p>
+</section>
 <section class="panel" id="researchQuality" style="margin-bottom:16px"><h2>DAGGER · Research quality / execution stress</h2><div class="stats"><div class="stat"><label>Stored prediction gaps over 22 min</label><strong id="rqGaps">—</strong></div><div class="stat"><label>Missing quote snapshots</label><strong id="rqMissing">—</strong></div><div class="stat"><label>Last 50 Brier score</label><strong id="rqBrier">—</strong></div><div class="stat"><label>Calibration holdout</label><strong id="rqCal">Collecting</strong></div></div><div class="reason"><span class="muted">Conservative / Value P&amp;L with +2¢ adverse execution cost</span><b id="rqStress">—</b></div><div class="reason"><span class="muted">Last stored forecast (UTC)</span><b id="rqLast">—</b></div><div class="reason"><span class="muted">Last 24h quote coverage</span><b id="rqCoverage">—</b></div><div class="reason"><span class="muted">Longest observed gap</span><b id="rqLongest">—</b></div><details style="margin-top:14px"><summary style="cursor:pointer;color:#cfb4ef">Data-collection troubleshooting</summary><p class="foot" id="rqTriage">Waiting for cloud validation data.</p><p class="foot">Check scheduler run history, /api/collect responses, and storage write logs. Browser refresh is not a collector run.</p></details><p class="foot">Quote snapshots are not fills. Gaps do not prove scheduled collector failures. Calibration remains research-only; no model is auto-promoted.</p></section>
 <section class="panel" style="margin-bottom:16px" id="learningLab"><h2>Local adaptive probability model · experimental (separate from cloud validation)</h2><div class="stats"><div class="stat"><label>Learning status</label><strong id="learnStatus" style="font-size:14px">Collecting outcomes</strong></div><div class="stat"><label>Verified training examples</label><strong id="learnTrain">0</strong></div><div class="stat"><label>Held-out test examples</label><strong id="learnTest">0</strong></div><div class="stat"><label>Model version</label><strong id="learnVersion" style="font-size:14px">Baseline</strong></div></div><div class="reason"><span class="muted">Baseline / learned Brier score on later contracts (lower is better)</span><b id="learnBrier">—</b></div><p class="foot" id="learnNote">Learning requires at least 100 earlier settled forecasts and 30 later held-out outcomes. Training uses official YES/NO settlements only, never inferred Coinbase outcomes. Local device storage only; no continuous background learning.</p></section>
 <section class="panel" style="margin-bottom:16px" id="paperLab">
@@ -378,6 +393,35 @@ async function cloudValidation(){
  }catch(e){$('cvStatus').textContent='FEED ERROR';$('cvNote').textContent='Cloud validation error: '+e.message;}}
 async function historyCheck(){try{const d=await getJSON('/api/validation?history=1');$('cvHistory').textContent=d.sources.map(s=>s.type+': '+s.count+(s.error?' ('+s.error+')':'')).join(' · ')+' · sample pages only';}catch(e){$('cvHistory').textContent='History request failed: '+e.message;}}
 $('cvRefresh').onclick=cloudValidation;$('cvHistoryBtn').onclick=historyCheck;cloudValidation();setInterval(cloudValidation,60000);
+
+
+// v6.2 display-only integration; does not change either model or collector.
+async function loadForwardResearch(){
+ const status=document.getElementById('fwStatus');
+ const put=(id,value)=>{document.getElementById(id).textContent=value;};
+ const fmt=(n,d=4)=>Number.isFinite(n)?Number(n).toFixed(d):'—';
+ try{
+  const r=await getJSON('/api/research-v61');
+  if(!r.ok||r.mode!=='forward-only-fixed-shadow')throw Error('Unexpected research response');
+  const n=Number(r.counts?.verifiedForwardSettlements)||0;
+  const min=Number(r.configuration?.minimumForwardSettlements)||75;
+  put('fwCount',n+' / '+min);
+  put('fwChampion',fmt(r.champion?.brier));put('fwChallenger',fmt(r.challenger?.brier));
+  put('fwReview',r.preliminaryReviewReady?'PRELIMINARY REVIEW':'COLLECTING');
+  put('fwAccuracy',fmt(Number.isFinite(r.champion?.accuracy)?r.champion.accuracy*100:null,1)+'% / '+fmt(Number.isFinite(r.challenger?.accuracy)?r.challenger.accuracy*100:null,1)+'%');
+  put('fwLogLoss',fmt(r.champion?.logLoss)+' / '+fmt(r.challenger?.logLoss));
+  const delta=r.absoluteBrierImprovement;
+  put('fwDelta',Number.isFinite(delta)?(delta>0?'+':'')+fmt(delta,5)+(delta>0?' (challenger better)':delta<0?' (champion better)':' (tied)'):'—');
+  put('fwMarkets',(r.counts?.uniqueMarkets??'—')+' / '+(r.counts?.pendingOrExcluded??'—'));
+  put('fwFreeze',r.freezeAt?new Date(r.freezeAt).toISOString().replace('T',' ').slice(0,16)+' UTC':'—');
+  const pct=Math.min(100,Math.max(0,n/min*100));document.getElementById('fwProgressFill').style.width=pct+'%';
+  document.getElementById('fwProgress').setAttribute('aria-valuemax',String(min));
+  document.getElementById('fwProgress').setAttribute('aria-valuenow',String(Math.min(n,min)));
+  status.textContent='Updated '+new Date().toLocaleTimeString()+' · Read-only research · No model promotion or trading';
+ }catch(e){status.textContent='Forward research unavailable: '+e.message+' · Other dashboard sections continue independently.';put('fwReview','UNAVAILABLE');}
+}
+document.getElementById('fwRefresh').addEventListener('click',loadForwardResearch);
+loadForwardResearch();setInterval(loadForwardResearch,60000);
 
 // Paper validation: independent market outcome evaluation. Does not claim calibrated probabilities.
 const PAPER_KEY='oracle_kalshi_paper_v1';
